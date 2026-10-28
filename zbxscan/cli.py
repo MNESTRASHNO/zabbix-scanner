@@ -385,7 +385,7 @@ def cmd_active(args: argparse.Namespace) -> int:
         "xss-cleanup": args.xss_cleanup, "seed-key": args.seed_key,
     }.items() if v is not None}
     for name in mod.args:
-        val = getattr(args, name.replace("-", "_"))
+        val = getattr(args, name.replace("-", "_"), None)
         if val is not None:
             module_args[name] = val
     res = mod.run(target, fp, module_args)
@@ -502,6 +502,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ws-port", default="10053", help="Zabbix web service TCP port (CVE-2022-46768)")
     ap.add_argument("--agent-port", default="10050", help="agent/agent2 passive TCP port (smartctl family)")
     ap.add_argument("--marker", default="ZBXINJECT", help="marker string for arg-injection probes")
+    ap.add_argument("--host", help="active-agent hostname (heartbeat / trapper modules)")
+    ap.add_argument("--pass-wrong", help="username for wrong-password attempts (lockout-bypass module)")
+    ap.add_argument("--container", help="container-name payload (agent2 docker plugin module)")
     ap.add_argument("--sleep", default="10", help="CVE-2025-27240: sleep seconds for the time-based payload")
     ap.add_argument("--payload", default="sleep", choices=["sleep", "error"],
                     help="CVE-2025-27240: sleep (timing oracle) or error (log-marker) payload")

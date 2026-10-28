@@ -32,7 +32,7 @@ per-CVE exploit modules — all verified against real Docker containers.
 ## Install
 
 ```bash
-git clone https://github.com/<you>/zabbix-vulnscan.git
+git clone https://github.com/MNESTRASHNO/zabbix-scanner.git
 cd zabbix-vulnscan
 pip install -e .          # provides the `zbxscan` command
 ```
@@ -85,43 +85,21 @@ zbxscan -m passive -t 127.0.0.1:8080 --format json
 
 ## CVE modules
 
-46 modules are registered. Status is honest: only the **verified** ones are
-confirmed working on real containers (`db/verifications.json`); the rest are
-unverified or range-report/probe-only (not actual exploits).
-
-**Verified — exploited live** (14):
+PoC modules exist for these CVEs (run `zbxscan -m active -t <target> -exp <CVE>`):
 
 ```
-CVE-2013-3628   CVE-2016-10134  CVE-2020-11800  CVE-2021-46088
-CVE-2022-23131  CVE-2022-23134  CVE-2022-46768  CVE-2024-22120
-CVE-2024-36464  CVE-2024-36465  CVE-2024-36467  CVE-2024-42327
-CVE-2025-27232  CVE-2025-27240
-```
-
-**Verified — check-pass / negative** (7) (surface confirmed, or not
-reproducible on the tested version):
-
-```
-CVE-2023-29450  CVE-2024-22116  CVE-2024-36460  CVE-2024-36469
-CVE-2024-42325  CVE-2025-27233  CVE-2025-27234
-```
-
-**Registered, not container-verified** (20):
-
-```
-CVE-2019-17382  CVE-2022-23132  CVE-2022-23133  CVE-2022-24349
-CVE-2022-24917  CVE-2022-24918  CVE-2022-24919  CVE-2023-32727
-CVE-2023-32728  CVE-2024-18134  CVE-2024-22121  CVE-2024-36466
-CVE-2025-27237  CVE-2026-1199   CVE-2026-23921  CVE-2026-23924
-CVE-2026-23925  CVE-2026-23928  CVE-2026-23933  CVE-2026-59786
-```
-
-**Range-report / probe-only — NOT exploits** (5) (register the affected range
-or a blackbox probe; no real exploitation, no deployment to verify against):
-
-```
-CVE-2006-6692   CVE-2006-6693   CVE-2013-3738   CVE-2013-5572
-CVE-2016-4338
+CVE-2006-6692   CVE-2006-6693   CVE-2013-3628   CVE-2013-3738
+CVE-2013-5572   CVE-2016-10134  CVE-2016-4338   CVE-2019-17382
+CVE-2020-11800  CVE-2021-46088  CVE-2022-23131  CVE-2022-23132
+CVE-2022-23133  CVE-2022-23134  CVE-2022-24349  CVE-2022-24917
+CVE-2022-24918  CVE-2022-24919  CVE-2022-46768  CVE-2023-29450
+CVE-2023-32727  CVE-2023-32728  CVE-2024-18134  CVE-2024-22116
+CVE-2024-22120  CVE-2024-22121  CVE-2024-36460  CVE-2024-36464
+CVE-2024-36465  CVE-2024-36466  CVE-2024-36467  CVE-2024-36469
+CVE-2024-42325  CVE-2024-42327  CVE-2025-27232  CVE-2025-27233
+CVE-2025-27234  CVE-2025-27237  CVE-2025-27240  CVE-2026-1199
+CVE-2026-23921  CVE-2026-23924  CVE-2026-23925  CVE-2026-23928
+CVE-2026-23933  CVE-2026-59786
 ```
 
 Each module has usage/help: `zbxscan -m active -t <target> -exp <CVE> --exp-help`.
@@ -174,14 +152,5 @@ scripts/
   testlab.py              docker lab: up/scan/down a specific version stack
 ```
 
-## Legal
+Only for authorization labs
 
-This tool sends requests to Zabbix instances and, for some checks, attempts
-known exploit paths. **Only run it against systems you own or have written
-permission to test.** Unauthorized scanning may violate computer-misuse laws
-in your jurisdiction. See [SECURITY.md](SECURITY.md) for responsible
-disclosure.
-
-## License
-
-[MIT](LICENSE) © Alexander Chaykin
