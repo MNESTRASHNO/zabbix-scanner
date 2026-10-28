@@ -1,0 +1,25 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# --- External research data (huge, regenerable) ---
+# full CVE JSON repo clone (~2 GB), fetched during research
+cvelist/
+# Common Crawl index dump used during research
+cdx.json
+# scratch files from the research phase
+research/tmp/
+# ad-hoc Dockerfiles for versions not on Docker Hub
+research/old_versions_lab/
+
+# --- Generated scan artifacts ---
+# passive scan logs / matrix output
+results/
+
+# --- Lab state ---
+*.logresults/

