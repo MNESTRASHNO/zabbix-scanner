@@ -1,0 +1,540 @@
+[
+ {
+  "id": "CVE-2026-23920",
+  "source": "nvd",
+  "title": "Host and event action script input is validated with a regex (set by the administrator), but the validation runs in mult",
+  "type": "other",
+  "severity": {
+   "cvss": "8.8",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
+  },
+  "summary": "Host and event action script input is validated with a regex (set by the administrator), but the validation runs in multiline mode. If ^ and $ anchors are used in user input validation, an injected newline lets authenticated users bypass the check and inject shell commands.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-23920"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-78"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2026-23922",
+  "source": "nvd",
+  "title": "The email media OAuth field 'Client secret' cannot be read after saving, but a Super Admin can leak it by setting a mali",
+  "type": "other",
+  "severity": {
+   "cvss": "4.9",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:N/A:N"
+  },
+  "summary": "The email media OAuth field 'Client secret' cannot be read after saving, but a Super Admin can leak it by setting a malicious 'Token endpoint'. Changes were made to reset the client secret upon changing the token endpoint.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-23922"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-522"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2026-23923",
+  "source": "nvd",
+  "title": "An unauthenticated attacker can exploit the Frontend 'validate' action to blindly instantiate arbitrary PHP classes",
+  "type": "other",
+  "severity": {
+   "cvss": "5.3",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+  },
+  "summary": "An unauthenticated attacker can exploit the Frontend 'validate' action to blindly instantiate arbitrary PHP classes. The impact depends on environment setup but appears limited at this time.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-23923"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-470"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2026-23926",
+  "source": "nvd",
+  "title": "An authenticated (non-super) administrator can create a maintenance period with a JavaScript payload that is executed by",
+  "type": "xss",
+  "severity": {
+   "cvss": "6.8",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:R/S:U/C:H/I:H/A:H"
+  },
+  "summary": "An authenticated (non-super) administrator can create a maintenance period with a JavaScript payload that is executed by any user that opens tooltip for that maintenance period in the Host navigator widget. This can allow the attacker to perform unauthorized actions depending on which user opens the tooltip.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-23926"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-79"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2026-23927",
+  "source": "nvd",
+  "title": "A user able to connect to Agent 2 can inject an Oracle TNS connection string via the 'service' parameter",
+  "type": "other",
+  "severity": {
+   "cvss": "6.5",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:N"
+  },
+  "summary": "A user able to connect to Agent 2 can inject an Oracle TNS connection string via the 'service' parameter. This can lead to Agent 2 connecting to an attacker-controlled server and leaking Oracle database credentials if they are saved in a named session.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-23927"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-522"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2026-23929",
+  "source": "nvd",
+  "title": "Prototype pollution vulnerability in searchParamsToObject() is leading to a persistent XSS in Maps",
+  "type": "other",
+  "severity": {
+   "cvss": "5.4",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N"
+  },
+  "summary": "Prototype pollution vulnerability in searchParamsToObject() is leading to a persistent XSS in Maps. URL parameter processing was not filtering dangerous properties like __proto__, combined with jQuery's unsafe element creation that traversed the prototype chain.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-23929"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-1321"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2026-23930",
+  "source": "nvd",
+  "title": "An unauthenticated user is able to cause disproportionate CPU load on the Frontend webserver by sending specifically cra",
+  "type": "other",
+  "severity": {
+   "cvss": "7.5",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+  },
+  "summary": "An unauthenticated user is able to cause disproportionate CPU load on the Frontend webserver by sending specifically crafted requests to the Frontend popup.testtriggerexpr action, leading to potential denial of service.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-23930"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-405"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2026-23931",
+  "source": "nvd",
+  "title": "The frontend validatate",
+  "type": "other",
+  "severity": {
+   "cvss": "4.3",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N"
+  },
+  "summary": "The frontend validatate.api.exists action can be exploited by authenticated users to extract plaintext user macro values leading to potential loss of confidentiality.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-23931"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-203"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2026-23934",
+  "source": "nvd",
+  "title": "An authenticated user is able to cause disproportionate CPU load on the Frontend webserver by sending specifically craft",
+  "type": "other",
+  "severity": {
+   "cvss": "6.5",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H"
+  },
+  "summary": "An authenticated user is able to cause disproportionate CPU load on the Frontend webserver by sending specifically crafted requests to the Frontend validate.api.exists action, leading to potential denial of service.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-23934"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-405"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2026-59785",
+  "source": "nvd",
+  "title": "Host search in Frontend allows filtering by fields that are not displayed, including stored IPMI and PSK credentials",
+  "type": "other",
+  "severity": null,
+  "summary": "Host search in Frontend allows filtering by fields that are not displayed, including stored IPMI and PSK credentials. A user with read access can guess a credential and see from the search result whether the guess was right, letting them uncover it.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-59785"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-204"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2026-59788",
+  "source": "nvd",
+  "title": "The email media type OAuth form passes the Authorization endpoint value to window",
+  "type": "xss",
+  "severity": null,
+  "summary": "The email media type OAuth form passes the Authorization endpoint value to window.open() without validating the URL scheme, so a javascript: URL is executed in the browser. This means a crafted media type configuration, deliverable as an import file, runs arbitrary JavaScript as the Super Admin who grants consent.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2026-59788"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-79"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2025-27231",
+  "source": "nvd",
+  "title": "The LDAP 'Bind password' value cannot be read after saving, but a Super Admin account can leak it by changing LDAP 'Host",
+  "type": "other",
+  "severity": {
+   "cvss": "4.9",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:N/A:N"
+  },
+  "summary": "The LDAP 'Bind password' value cannot be read after saving, but a Super Admin account can leak it by changing LDAP 'Host' to a rogue LDAP server. To mitigate this, the 'Bind password' value is now reset on 'Host' change.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2025-27231"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-522"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2016-9140",
+  "source": "nvd",
+  "title": "Rejected reason: DO NOT USE THIS CANDIDATE NUMBER",
+  "type": "other",
+  "severity": null,
+  "summary": "Rejected reason: DO NOT USE THIS CANDIDATE NUMBER.  ConsultIDs: none.  Reason: This candidate was withdrawn by its CNA.  Further investigation showed that it was not a security issue.  Notes: none",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2016-9140"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": []
+  }
+ },
+ {
+  "id": "CVE-2017-5929",
+  "source": "nvd",
+  "title": "QOS",
+  "type": "other",
+  "severity": {
+   "cvss": "9.8",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+  },
+  "summary": "QOS.ch Logback before 1.2.0 has a serialization vulnerability affecting the SocketServer and ServerSocketReceiver components.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2017-5929"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-502"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2015-9251",
+  "source": "nvd",
+  "title": "jQuery before 3",
+  "type": "xss",
+  "severity": {
+   "cvss": "6.1",
+   "vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+  },
+  "summary": "jQuery before 3.0.0 is vulnerable to Cross-site Scripting (XSS) attacks when a cross-domain Ajax request is performed without the dataType option, causing text/javascript responses to be executed.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2015-9251"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-79"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2021-42550",
+  "source": "nvd",
+  "title": "In logback version 1",
+  "type": "other",
+  "severity": {
+   "cvss": "6.6",
+   "vector": "CVSS:3.1/AV:N/AC:H/PR:H/UI:N/S:U/C:H/I:H/A:H"
+  },
+  "summary": "In logback version 1.2.7 and prior versions, an attacker with the required privileges to edit configurations files could craft a malicious configuration allowing to execute arbitrary code loaded from LDAP servers.",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2021-42550"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-502",
+    "CWE-502"
+   ]
+  }
+ },
+ {
+  "id": "CVE-2025-66475",
+  "_nvd_error": "no vuln"
+ },
+ {
+  "id": "CVE-2025-66578",
+  "source": "nvd",
+  "title": "xmlseclibs is a library written in PHP for working with XML Encryption and Signatures",
+  "type": "other",
+  "severity": {
+   "cvss": "6.0",
+   "vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:L/A:L"
+  },
+  "summary": "xmlseclibs is a library written in PHP for working with XML Encryption and Signatures. Versions 3.1.3 contain an authentication bypass vulnerability due to a flaw in the libxml2 canonicalization process during document transformation. When libxml2’s canonicalization is invoked on an invalid XML input, it may return an empty string rather than a canonicalized node. xmlseclibs then proceeds to compute the DigestValue over this empty string, treating it as if canonicalization succeeded. This issue is fixed in version 3.1.4. Workarounds include treating canonicalization failures (exceptions or nil",
+  "impact": "",
+  "affected_versions": [],
+  "fixed_versions": [],
+  "auth": "unknown",
+  "component": "unknown",
+  "prerequisites": [],
+  "public_poc": {
+   "exists": false,
+   "url": null,
+   "notes": ""
+  },
+  "references": [
+   "https://nvd.nist.gov/vuln/detail/CVE-2025-66578"
+  ],
+  "verified_on": [],
+  "_meta": {
+   "affected_source": "nvd-cpe",
+   "cwe": [
+    "CWE-248"
+   ]
+  }
+ }
+]

