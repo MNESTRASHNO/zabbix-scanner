@@ -304,6 +304,25 @@ def _print_hosts_import(rep: passive.TargetReport) -> None:
         probe.close()
 
 
+def _looks_like_target(s: str) -> bool:
+    """A plain host[:port] (IPv4/hostname/IPv6). Rejects paths (/, \\, ..)
+    and blank/whitespace so `-t ../tests` isn't scanned as a host."""
+    s = s.strip()
+    if not s or any(ch in s for ch in " \t"):
+        return False
+    if "/" in s or "\\" in s or ".." in s:
+        return False
+    return True
+
+
+def _x_targets(listuv: list[str]) -> list[str]:
+    bad = [t for t in listuv if not _looks_like_target(t)]
+    if bad:
+        _err = ", ".join(repr(b) for b in bad)
+        raise SystemExit(f"invalid target(s) {_err}: expected HOST[:PORT]; use -l <file> for a list/target file")
+    return listuv
+
+
 def cmd_passive(args: argparse.Namespace) -> int:
     targets: list[str] = []
     if args.targets:
@@ -315,6 +334,7 @@ def cmd_passive(args: argparse.Namespace) -> int:
                     cell = cell.strip()
                     if cell and not cell.startswith("#"):
                         targets.append(cell)
+    _x_targets(targets)
     if not targets:
         print("no targets: pass -t <host[:port]> or -l <file>", file=sys.stderr)
         return 2
@@ -348,6 +368,9 @@ def cmd_passive(args: argparse.Namespace) -> int:
 
 
 def cmd_active(args: argparse.Namespace) -> int:
+    if args.targets and not all(_looks_like_target(t) for t in args.targets):
+        print("invalid target: expected HOST[:PORT]", file=sys.stderr)
+        return 2
     if not args.targets or len(args.targets) != 1:
         print("-m active requires exactly one -t <target>", file=sys.stderr)
         return 2
@@ -382,7 +405,9 @@ def cmd_active(args: argparse.Namespace) -> int:
         "shell": args.shell, "revshell": args.revshell, "revshell-shell": args.revshell_shell,
         "sql-auto": args.sql_auto,
         "xss-callback": args.xss_callback, "xss-mode": args.xss_mode,
-        "xss-cleanup": args.xss_cleanup, "seed-key": args.seed_key,
+        "xss-cleanup": args.xss_cleanup, "xss-listen": args.xss_listen,
+        "xss-port": args.xss_port, "xss-wait": args.xss_wait,
+        "xss-beacon": args.xss_beacon, "seed-key": args.seed_key,
     }.items() if v is not None}
     for name in mod.args:
         val = getattr(args, name.replace("-", "_"), None)
@@ -461,7 +486,13 @@ def main(argv: list[str] | None = None) -> int:
         argv = sys.argv[1:]
     argv = _rewrite_argv(argv)
     ap = argparse.ArgumentParser(prog="zbxscan", description="Zabbix vulnerability scanner")
-    ap.add_argument("-m", "--mode", choices=["passive", "active"], required=True)
+    # mode: positional first (zbxscan passive|active) and/or -m/--mode; auto-inferred
+    # when absent: -exp/--exp means active, otherwise passive
+    ap.add_argument("mode_positional", nargs="?", choices=["passive", "active"],
+                    metavar="{passive,active}",
+                    help="mode as positional: `zbxscan passive -t HOST` (or -m/--mode)")
+    ap.add_argument("-m", "--mode", dest="mode_opt", choices=["passive", "active"],
+                    help="mode (alternative to positional; auto: -exp => active, else passive)")
     ap.add_argument("-t", "--targets", action="append", metavar="HOST[:PORT]",
                     help="single target (repeatable; active mode: exactly one)")
     ap.add_argument("-l", "--list-file", metavar="FILE", help="target list (one per line / csv)")
@@ -478,10 +509,21 @@ def main(argv: list[str] | None = None) -> int:
                     help="payload flavour for --revshell (bash /dev/tcp, nc -e, busybox fifo+nc)")
     ap.add_argument("--xss-callback", default=None, metavar="URL",
                     help="XSS payload: attacker URL receiving the victim's zbx_session")
-    ap.add_argument("--xss-mode", default=None, choices=["full", "dry", "beacon"],
-                    help="XSS payload mode: full (create+execute as victim), dry, beacon")
+    ap.add_argument("--xss-mode", default=None, choices=["full", "dry", "beacon", "verify"],
+                    help="XSS payload mode: full (create+execute as victim: RCE), verify "
+                         "(create-only script with the beacon phrase: XSS proof), dry, beacon")
     ap.add_argument("--xss-cleanup", default="1",
                     help="XSS payload: delete the created script after execution (1/0)")
+    ap.add_argument("--xss-listen", default=None, choices=["0", "1"],
+                    help="XSS module: run a local HTTP listener (127.0.0.1:--xss-port) and "
+                         "return a verdict from the victim's callback (beacon/cookie/RCE)")
+    ap.add_argument("--xss-port", type=int, default=None,
+                    help="XSS module: local callback listener port (default 8123)")
+    ap.add_argument("--xss-wait", type=float, default=None,
+                    help="XSS module: seconds to wait for the victim callback (default 180)")
+    ap.add_argument("--xss-beacon", default=None,
+                    help="XSS module: beacon message exfiltrated with ?m= (default "
+                         "\"Hi! It's a XSS from MN3STRASHN0\")")
     ap.add_argument("--seed-key", default=None,
                     help="session signing key for cookie-forge modules (CVE-2026-23933/36466); 'auto' reads from --db-host")
     ap.add_argument("--sql-auto", action="store_true",
@@ -505,6 +547,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--host", help="active-agent hostname (heartbeat / trapper modules)")
     ap.add_argument("--pass-wrong", help="username for wrong-password attempts (lockout-bypass module)")
     ap.add_argument("--container", help="container-name payload (agent2 docker plugin module)")
+    ap.add_argument("--inject", help="CVE-2016-4338: injection value for the agent userparameter")
+    ap.add_argument("--script", help="CVE-2016-4338: executable path on the agent to auto-run via dash [[")
     ap.add_argument("--sleep", default="10", help="CVE-2025-27240: sleep seconds for the time-based payload")
     ap.add_argument("--payload", default="sleep", choices=["sleep", "error"],
                     help="CVE-2025-27240: sleep (timing oracle) or error (log-marker) payload")
@@ -523,10 +567,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--list-cves", action="store_true", help="dump the vulnerability database")
     ap.add_argument("--branch", help="with --list-cves: filter by branch")
     args = ap.parse_args(argv)
-
+    # resolve mode: positional > -m/--mode > auto (-exp => active, else passive)
+    mode = args.mode_positional or args.mode_opt or ("active" if args.exp else "passive")
     if args.list_cves:
         return cmd_list(args)
-    if args.mode == "passive":
+    if mode == "passive":
         return cmd_passive(args)
     return cmd_active(args)
 

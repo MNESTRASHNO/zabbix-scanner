@@ -1635,11 +1635,14 @@
     {
      "branch": "2.0",
      "min": "2.0.5",
-     "max": "2.0.5"
+     "max": "2.0.10"
     }
    ],
    "fixed_versions": [
-    "unknown"
+    "2.0.11rc1",
+    "1.8.20rc2",
+    "2.2.2rc1",
+    "2.3.0"
    ],
    "auth": "authenticated-user",
    "component": "other",
@@ -6225,7 +6228,9 @@
     "zbx": [],
     "zba": []
    },
-   "verified_on": [],
+   "verified_on": [
+    "5.0.5"
+   ],
    "notes": "meta: {\"affected_source\": \"nvd-config\", \"zbx_ticket\": \"ZBX-23857\", \"jira_components\": [\"Server (S)\"]}"
   },
   {
@@ -9492,13 +9497,13 @@
      "branch": "7.2",
      "min": "7.2.0",
      "max": "7.2.15",
-     "notes": "max сжат к фиксу ветки (был 7.2.15); max эксклюзивный"
+     "notes": "max сжат к фиксу ветки (был 7.2.15); max эксклюзивный. Верификация 2026-10-29: вектор НЕ достигается в 7.2 — ни один API-сервис 7.2.14 не принимает groupBy (grep по всем services/*.php), а CApiService.php 7.2.14->7.2.15 без изменений; sortfield-groubBy-цепочка недостижима -> ветка 7.2 в NVD-диапазоне, вероятно, ложная"
     },
     {
      "branch": "7.4",
      "min": "7.4.0",
      "max": "7.4.6",
-     "notes": "max сжат к фиксу ветки (был 7.4.6); max эксклюзивный"
+     "notes": "max сжат к фиксу ветки (был 7.4.6); max эксклюзивный. Верификация 2026-10-29: на живом 7.4.2 event.get groupBy ограничен 'in'=>'objectid', user.get отклоняет groupBy -> вектор недостижим в 7.4 (фикс CApiService 7.4.6 — defense-in-depth); ветка в NVD-диапазоне, вероятно, ложная"
     }
    ],
    "fixed_versions": [

