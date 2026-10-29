@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Zabbix](https://img.shields.io/badge/zabbix-2016%E2%80%932026-red)](https://www.zabbix.com)
+[![Zabbix](https://img.shields.io/badge/zabbix-2006%E2%80%932026-red)](https://www.zabbix.com)
 
 Passive and active vulnerability scanner for Zabbix (2006–2026). Fingerprints the
 installation, matches it against a curated vulnerability database, evaluates
