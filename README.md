@@ -33,7 +33,7 @@ per-CVE exploit modules — all verified against real Docker containers.
 
 ```bash
 git clone https://github.com/MNESTRASHNO/zabbix-scanner.git
-cd zabbix-vulnscan
+cd zabbix-scanner
 pip install -e .          # provides the `zbxscan` command
 ```
 
