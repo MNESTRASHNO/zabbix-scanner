@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Zabbix](https://img.shields.io/badge/zabbix-2016%E2%80%932026-red)](https://www.zabbix.com)
 
-Passive and active vulnerability scanner for Zabbix (2016–2026). Fingerprints the
+Passive and active vulnerability scanner for Zabbix (2006–2026). Fingerprints the
 installation, matches it against a curated vulnerability database, evaluates
 exploitability conditions (including with default credentials), and runs
 per-CVE exploit modules — all verified against real Docker containers.
