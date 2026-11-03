@@ -1,23 +1,23 @@
-# Zabbix CVE-записи: конспект исследования (2016–2026, плюс релевантные более старые)
+# Zabbix CVE records: research digest (2016–2026, plus relevant older ones)
 
-Обновлено: 2026-10-28 · Записей: **132** · Из них с подтверждённым публичным PoC: **11**
+Updated: 2026-10-28 · Records: **132** · Of them with a confirmed public PoC: **11**
 
-## Методика и источники
+## Method and sources
 
-1. **NVD API** `keywordSearch=zabbix` (все 104 записи) + per-CVE запросы для CVE, отсутствующих в keyword-выборке (у некоторых CVE слово «zabbix» есть только в CPE/affects, а не в описании, напр. CVE-2023-32725).
-2. **CVEProject/cvelist** (git clone --depth 1): grep «zabbix» по всем JSON — 111 файлов; Zabbix является собственной CNA (`security@zabbix.com`), поэтому записи содержат точные диапазоны и ссылки на тикеты ZBX-*.
-3. **Jira Zabbix (REST API** `support.zabbix.com/rest/api/2/issue/<ZBX-...>`**)**: для каждого CVE вытянут тикет (если есть) — `fixVersions`, секции «Affected versions», «Affected and fix version/s», «Affected → Fixed», компоненты. Именно оттуда взяты **fixed_versions** (значения verbatim, включая rc/alpha-номера).
-4. **Talos (CVE-2017-2824/25/26)**: тикет ZBX-12075 (публичный, найден через Ubuntu security tracker) — фиксы 2.0.21rc1/2.2.18rc1/3.0.9rc1/3.2.5rc1/3.4.0alpha1.
-5. **NVD конфигурации (CPE 2.3)** переведены в `affected_versions` (ветки major.minor; `notes` = эксклюзивность границ).
+1. **NVD API** `keywordSearch=zabbix` (all 104 records) + per-CVE queries for CVEs missing from the keyword sample (for some CVEs the word 'zabbix' appears only in CPE/affects, not in the description, e.g. CVE-2023-32725).
+2. **CVEProject/cvelist** (git clone --depth 1): grep 'zabbix' across all JSON — 111 files; Zabbix is its own CNA (`security@zabbix.com`), so records contain exact ranges and ZBX-* ticket links.
+3. **Jira Zabbix (REST API** `support.zabbix.com/rest/api/2/issue/<ZBX-...>`**)**: for each CVE the ticket (if any) was pulled — `fixVersions`, the 'Affected versions', 'Affected and fix version/s', 'Affected → Fixed' sections, components. **fixed_versions** come from there (values verbatim, including rc/alpha suffixes).
+4. **Talos (CVE-2017-2824/25/26)**: ticket ZBX-12075 (public, found via the Ubuntu security tracker) — fixes 2.0.21rc1/2.2.18rc1/3.0.9rc1/3.2.5rc1/3.4.0alpha1.
+5. **NVD configurations (CPE 2.3)** converted into `affected_versions` (major.minor branches; `notes` = boundary exclusivity).
 
-## Покрытие
+## Coverage
 
-- Окно 2016–2026: **все CVE по Zabbix**, включая 2025–2026 гг. (данные NVD + свежие адвайзери Zabbix 2025–2026).
-- Более старые CVE (2006–2014), которые бьют версии, встречающиеся в 2016+ (1.x/2.x/3.0), включены целиком.
-- Исключены записи, не являющиеся уязвимостями продукта Zabbix: **CVE-2014-4326** (плагин zabbix.rb в Elasticsearch Logstash), **CVE-2018-18289** (плагин MESILAT для Confluence), **CVE-2022-26148** (плагин Grafana), **CVE-2025-10630** (плагин grafana-zabbix), **CVE-2026-2041** (конфиг-визард Nagios), **CVE-2010-1144** (rejected, расколот на CVE-2010-0751/CVE-2010-1277).
-- ⚠️ **CVE-2016-10135 — НЕ Zabbix**: это уязвимость LG/MTK (MTKLogger). В ТЗ она упомянута как «XSS Zabbix» — это ошибка; парной XSS к CVE-2016-10134 в реестре Zabbix нет (oss-security 2017-01-12: SQLi + open redirect).
+- The 2016–2026 window: **every Zabbix CVE**, including 2025–2026 (NVD data + fresh Zabbix advisories 2025–2026).
+- Older CVEs (2006–2014) that hit versions still seen in 2016+ (1.x/2.x/3.0) are included in full.
+- Records that are not Zabbix-product vulnerabilities were excluded: **CVE-2014-4326** (zabbix.rb plugin in Elasticsearch Logstash), **CVE-2018-18289** (MESILAT plugin for Confluence), **CVE-2022-26148** (Grafana plugin), **CVE-2025-10630** (grafana-zabbix plugin), **CVE-2026-2041** (Nagios config wizard), **CVE-2010-1144** (rejected, split into CVE-2010-0751/CVE-2010-1277).
+- ⚠️ **CVE-2016-10135 is NOT Zabbix**: it is an LG/MTK (MTKLogger) vulnerability. The tasking mentions it as a 'Zabbix XSS' — that is a mistake; there is no companion XSS to CVE-2016-10134 in the Zabbix registry (oss-security 2017-01-12: SQLi + open redirect).
 
-## Сводная таблица
+## Summary table
 
 | CVE | type | affected (branch: min–max) | fix | auth | PoC |
 |---|---|---|---|---|---|
@@ -45,8 +45,8 @@
 | CVE-2012-6086 | other | 1.8: 1.8.1–1.8.16; 2.0: 2.0.0–2.0.6; 2.1: 2.1.0–2.1.1 | 1.8.18rc1, 2.0.8rc1, 2.1.2 | unknown | — |
 | CVE-2013-1364 | other | 1.8: unknown–1.8.15; 2.0: 2.0.0–2.0.4 | 1.8.16, 2.0.5rc1 | none | — |
 | CVE-2013-3628 | rce | 2.0: 2.0.9–2.0.9 | unknown | unknown | ✅ |
-| CVE-2013-3738 | rce | 2.0: 2.0.6–2.0.6 | 2.0.7rc1, 2.1.2 | unknown | — |
-| CVE-2013-5572 | rce | 2.0: 2.0.5–2.0.5 | unknown | authenticated-user | — |
+| CVE-2013-3738 | rce | 2.0: 2.0.6–2.0.6 | 2.0.7rc1, 2.1.2 | unknown | ✅ |
+| CVE-2013-5572 | rce | 2.0: 2.0.5–2.0.10 (NVD: 2.0.5; ZBX-6721: affects 2.0.6, fix 2.0.11rc1) | 2.0.11rc1, 1.8.20rc2, 2.2.2rc1, 2.3.0 | authenticated-user | ✅ |
 | CVE-2013-5743 | sql-injection | 1.8: 1.8–1.8.17; 2.0: 2.0.0–2.0.8; 2.1: 2.1.0–2.1.7 | 1.8.18rc1, 2.0.9rc1, 2.1.7 | unknown | ✅ |
 | CVE-2013-6824 | command-injection | 1.8: unknown–1.8.18; 2.0: 2.0.0–2.0.0; 2.2: 2.2.0–2.2.0 | 1.8.19rc1, 2.0.10rc1, 2.2.1rc1 (+1) | unknown | — |
 | CVE-2013-7484 | other | 2.0: 2.0.8–2.0.8; 4.4: 4.4.0alpha2–4.4.0alpha2 | 5.0 | unknown | — |
@@ -154,38 +154,39 @@
 | CVE-2026-59786 | auth-bypass | 7.0: 7.0.0–7.0.28; 7.4: 7.4.0–7.4.12 | 7.0.29, 7.4.13 | unknown | — |
 | CVE-2026-59787 | other | 6.0: 6.0.0–6.0.47; 7.0: 7.0.0–7.0.28; 7.4: 7.4.0–7.4.12 | 6.0.48, 7.0.29, 7.4.13 | unknown | — |
 
-## Примечания по ключевым записям
+## Notes on key records
 
-- **CVE-2016-10134** (тикет ZBX-11023, источник диапазонов: nvd-config): SQL-инъекция в фронтенде Zabbix: параметр-массив toggle_ids в latest.php не экранируется, атакующий получает возможность выполнять произвольные SQL-запросы к БД Zabbix без аутентификации. Позволяет обойти авторизацию (SE
-- **CVE-2017-2824** (тикет —, источник диапазонов: zabbix-advisory): Command injection в trapper-функциональности Zabbix Server. Специально сформированные trapper-пакеты ('command' / 'discovery data') позволяют вставить команду в поле IP интерфейса хоста; при выполнении скрипта команда ис
-- **CVE-2017-2825** (тикет —, источник диапазонов: zabbix-advisory): В trapper-функциональности Zabbix Server специально сформированные пакеты проходят проверки логики БД и приводят к записи в базу данных. Атакующий может использовать Man-in-the-Middle для изменения trapper-запросов между
-- **CVE-2017-2826** (тикет —, источник диапазонов: zabbix-advisory): Уязвимость раскрытия информации в iConfig proxy request Zabbix Server: специально сформированный запрос заставляет сервер отправить конфигурацию любого Zabbix proxy, включая чувствительные данные, без аутентификации.
-- **CVE-2019-17382** (тикет —, источник диапазонов: nvd-config): Обход страницы логина: запрос zabbix.php?action=dashboard.view&dashboardid=1 позволяет неаутентифицированному пользователю открыть дашборд и анонимно создавать Dashboard/Report/Screen/Map, доступные другим пользователям 
-- **CVE-2020-11800** (тикет ZBX-17600, источник диапазонов: nvd-config): Zabbix Server 2.2.x, 3.0.x до 3.0.31 и 3.2 позволяет удалённому аутентифицированному пользователю (роль User) выполнять произвольный код через глобальные скрипты (operations) при отсутствии ограничений на использование с
-- **CVE-2021-46088** (тикет —, источник диапазонов: advisory-text): Пользователь с ролью 'Zabbix Admin' может выполнить произвольный shell-скрипт на сервере приложения в контексте пользователя приложения (обычно zabbix) через функциональность remote commands. Требует настроенных скриптов
-- **CVE-2022-23131** (тикет ZBX-20350, источник диапазонов: nvd-config): При включённой SAML-аутентификации данные сессии хранятся на клиенте и логин пользователя в сессии не проверяется. Неаутентифицированный злоумышленник может модифицировать данные сессии, подменить логин и получить доступ
-- **CVE-2022-23134** (тикет ZBX-20384, источник диапазонов: nvd-config): После первичной установки шаги setup.php доступны не только супер-администраторам, но и неаутентифицированным пользователям. Злоумышленник может проходить проверки шагов и менять конфигурацию фронтенда. Эксплуатировался 
-- **CVE-2023-32725** (тикет ZBX-23854, источник диапазонов: nvd-config): Сайт, настроенный в URL widget, получает session-куку при тестировании или выполнении плановых отчётов. Полученная кука может быть использована для доступа к фронтенду от имени конкретного пользователя.
-- **CVE-2024-22120** (тикет ZBX-24505, источник диапазонов: nvd-config): Zabbix server выполняет команды настроенных скриптов и пишет audit-запись. Поле 'clientip' не санируется — возможна time-based blind SQL-инъекция через это поле. Требует прав на выполнение скриптов.
-- **CVE-2024-42327** (тикет ZBX-25623, источник диапазонов: nvd-config): SQL-инъекция в классе CUser (функция addRelatedObjects, вызывается из CUser.get), доступном любому пользователю с API-доступом. Не-администратор может выполнять произвольные SQL-запросы, включая расшифровку/получение дан
-- **CVE-2025-27233** (тикет ZBX-26987, источник диапазонов: zabbix-advisory): Плагин smartctl Agent 2 не санирует параметры smart.disk.get, позволяя внедрить неожиданные аргументы в команду smartctl. Может использоваться для утечки NTLMv2-хэша с Windows-систем.
-- **CVE-2025-27234** (тикет ZBX-26985, источник диапазонов: zabbix-advisory): Аналогично CVE-2025-27233, но в Zabbix 5.0 внедрение аргументов в smartctl позволяет удалённое выполнение кода.
-- **CVE-2026-23921** (тикет ZBX-27640, источник диапазонов: nvd-config): Blind SQL-инъекция в include/classes/api/CApiService.php через параметр sortfield. Результаты напрямую не возвращаются, но атакующий может извлечь произвольные данные БД time-based методами, вплоть до раскрытия идентифик
-- **CVE-2026-23933** (тикет ZBX-28071, источник диапазонов: nvd-config): В Zabbix 7.4 криптографический ключ подписи сессий фронтенда ошибочно записан в database seed. В деплойментах с SAML-аутентификацией и гостевыми пользователями ключ позволяет подделывать валидные сессионные cookie и полу
+- **CVE-2016-10134** (ticket ZBX-11023, range source: nvd-config): SQL injection in the Zabbix frontend: the toggle_ids array parameter of latest.php is not escaped, letting an attacker run arbitrary SQL against the Zabbix DB unauthenticated. Allows authorization bypass (SELECT * FROM users), data modification and code execution via SQL injection. Used in real attacks; listed in CISA KEV.
+- **CVE-2017-2824** (ticket —, range source: zabbix-advisory): Command injection in Zabbix Server trapper functionality. Crafted trapper packets ('command' / 'discovery data') allow injecting a command into the host interface IP field; when a script runs, the command executes as the zabbix_server process. Leads to remote code execution.
+- **CVE-2017-2825** (ticket —, range source: zabbix-advisory): In Zabbix Server trapper functionality, crafted packets pass DB logic checks and get written to the database. An attacker can use a man-in-the-middle position to alter trapper requests between an active proxy and the server.
+- **CVE-2017-2826** (ticket —, range source: zabbix-advisory): Information disclosure in the Zabbix Server iConfig proxy request: a crafted request makes the server send the configuration of any Zabbix proxy, including sensitive data, without authentication.
+- **CVE-2019-17382** (ticket —, range source: nvd-config): Login page bypass: the request zabbix.php?action=dashboard.view&dashboardid=1 lets an unauthenticated user open a dashboard and anonymously create Dashboards/Reports/Screens/Maps visible to other users and the administrator. Exploited in the wild (CISA KEV).
+- **CVE-2020-11800** (ticket ZBX-17600, range source: nvd-config): Zabbix Server 2.2.x, 3.0.x before 3.0.31 and 3.2 allows a remote authenticated user (User role) to execute arbitrary code via global scripts (operations) when script usage is not restricted. Fixed in 3.0.31.
+- **CVE-2021-46088** (ticket —, range source: advisory-text): A user with the 'Zabbix Admin' role can execute an arbitrary shell script on the application server as the application user (usually zabbix) via the remote commands feature. Requires configured scripts.
+- **CVE-2022-23131** (ticket ZBX-20350, range source: nvd-config): With SAML authentication enabled, session data is stored client-side and the username in the session is not verified. An unauthenticated attacker can modify session data, swap the username and gain administrator access to the frontend. Actively exploited in the wild (CISA KEV).
+- **CVE-2022-23134** (ticket ZBX-20384, range source: nvd-config): After initial installation, setup.php steps are available not only to super administrators but also to unauthenticated users. An attacker can pass step checks and change the frontend configuration. Exploited in the wild (CISA KEV).
+- **CVE-2023-32725** (ticket ZBX-23854, range source: nvd-config): The site configured in a URL widget receives the session cookie during testing or scheduled report runs. The obtained cookie can be used to access the frontend as that user.
+- **CVE-2024-22120** (ticket ZBX-24505, range source: nvd-config): Zabbix server executes configured script commands and writes an audit record. The 'clientip' field is not sanitized — time-based blind SQL injection via this field is possible. Requires script execution rights.
+- **CVE-2024-42327** (ticket ZBX-25623, range source: nvd-config): SQL injection in the CUser class (addRelatedObjects, called from CUser.get), available to any user with API access. A non-administrator can run arbitrary SQL queries, including decryption/retrieval of DB data. Actively exploited in the wild (CISA KEV).
+- **CVE-2025-27233** (ticket ZBX-26987, range source: zabbix-advisory): The Agent 2 smartctl plugin does not sanitize smart.disk.get parameters, allowing unexpected arguments to be injected into the smartctl command. Can be used to leak an NTLMv2 hash from Windows systems.
+- **CVE-2025-27234** (ticket ZBX-26985, range source: zabbix-advisory): Similar to CVE-2025-27233, but in Zabbix 5.0 the smartctl argument injection enables remote code execution.
+- **CVE-2026-23921** (ticket ZBX-27640, range source: nvd-config): Blind SQL injection in include/classes/api/CApiService.php via the sortfield parameter. Results are not returned directly, but an attacker can extract arbitrary DB data with time-based techniques, up to disclosing session identifiers and compromising an administrator account.
+- **CVE-2026-23933** (ticket ZBX-28071, range source: nvd-config): In Zabbix 7.4 the frontend session signing key is mistakenly written into the database seed. In deployments with SAML authentication and guest users the key allows forging valid session cookies and gaining unauthorized access. No known impact for other deployments.
 
-## Что НЕ подтверждено / ограничения
+## Unconfirmed items / limitations
 
-- **Fixed без источника**: `fixed_versions: ["unknown"]` у CVE-2006-6692, CVE-2006-6693, CVE-2008-1353, CVE-2010-5049, CVE-2013-3628, CVE-2013-5572, CVE-2019-17382, CVE-2021-46088 — ни в одном доступном адвайзери/тикете/NVD фиксирующая версия явно не названа. Для CVE-2019-17382 и CVE-2021-46088 есть только сторонние разборы; для CVE-2013-3628 Zabbix фикс вообще не публиковал.
-- **CVE-2006-6692/6693**: диапазон «before 20061006» — версия-дата, ветка `unknown`.
-- **CVE-2019-17382**: Zabbix долго считал поведение (доступ к дашборду без логина) некритичным; публичный PoC (EDB 47467) есть, официальной фиксящей версии в адвайзери нет. В CISA KEV значится как эксплуатируемый.
-- **Talos CVE-2017-2824/25/26**: описания говорят о 2.4.X (Talos тестировал 2.4.8); фиксы выходили во всех поддерживаемых ветках (ZBX-12075). Точные границы уязвимости по 2.2/3.0 из первоисточника недоступны (страница Talos закрыта Cloudflare; тикет публичный).
-- **NVD-конфигурации отсутствуют** для 2017-2824/25/26, 2019-17382, 2020-11800, 2021-46088, 2013-3628, 2022-22704 — affected построен из текста описаний/тикетов.
-- **CVSS**: для старых CVE — только CVSSv2; для 2025+ — CVSS v4.0 (вектор записан verbatim, отличается от примера в контракте).
-- **rc/beta в `fixed_versions`** («6.0.22rc1», «5.4.9rc2», «7.0.0beta1») — verbatim из Jira; фактическая релизная фиксящая версия — rc без суффикса (не выводилось автоматически, чтобы не додумывать).
-- **PoC** (11 подтверждённых): Metasploit (CVE-2009-4498, CVE-2009-4502, CVE-2013-3628, CVE-2013-5743, CVE-2016-10134); EDB 40237 (SQLi), EDB 29321, EDB 47467 (CVE-2019-17382); vulhub exploit.py (CVE-2017-2824); GitHub Mr-xn/cve-2022-23131, TheN00bBuilder/cve-2022-23134-poc-and-writeup, paalbra/zabbix-zbxsec-7 (CVE-2021-46088), watchdog1337/CVE-2024-42327_Zabbix_SQLI. Для остальных — только writeup'ы (напр. Qualys по CVE-2024-22120) или ничего; это отражено в `public_poc.notes`.
-- **scope**: записи не верифицировались на живых инстансах (`verified_on: []`) — задача активной фазы сканера.
+- **Fixed without a source**: `fixed_versions: ["unknown"]` for CVE-2006-6692, CVE-2006-6693, CVE-2008-1353, CVE-2010-5049, CVE-2013-3628, CVE-2019-17382, CVE-2021-46088 — no available advisory/ticket/NVD names the fixing version explicitly. For CVE-2019-17382 and CVE-2021-46088 only third-party write-ups exist; for CVE-2013-3628 Zabbix published no fix at all. CVE-2013-5572 excluded: a source was found (ZBX-6721: fix 2.0.11rc1/1.8.20rc2/2.2.2rc1/2.3.0).
+- **Live verification 2026-10-29 (legacy stacks, source builds)**: CVE-2013-3738 — 2.0.6 frontend (PHP 5.6.40 jessie + Apache 2.4.10 + MySQL 5.6.51), the ZBX-6652 artifact confirmed (reflection + error-based SQLi via report6.php items[0][itemid]); there is NO include-based RCE chain in the 2.0.6 sources (the NVD label is a generic scanner artifact), result check-pass. CVE-2013-5572 — 2.0.5 frontend, the LDAP-bind password (config.ldap_bind_password) extracted from the authentication.php HTML (value= on the ldap_bind_password input), result exploited. Details and build steps — db/verifications.json + the LegacyCGI3738 agent release report.
+- **CVE-2006-6692/6693**: the 'before 20061006' range is a date-version, branch `unknown`.
+- **CVE-2019-17382**: Zabbix long considered the behavior (dashboard access without login) non-critical; a public PoC exists (EDB 47467), no official fixing version in advisories. Listed in CISA KEV as exploited.
+- **Talos CVE-2017-2824/25/26**: the descriptions speak of 2.4.X (Talos tested 2.4.8); fixes shipped in all supported branches (ZBX-12075). Exact 2.2/3.0 boundaries are unavailable from the primary source (the Talos page is behind Cloudflare; the ticket is public).
+- **No NVD configurations** for 2017-2824/25/26, 2019-17382, 2020-11800, 2021-46088, 2013-3628, 2022-22704 — affected was built from description/ticket text.
+- **CVSS**: for older CVEs — CVSSv2 only; for 2025+ — CVSS v4.0 (the vector is recorded verbatim and differs from the contract example).
+- **rc/beta in `fixed_versions`** ('6.0.22rc1', '5.4.9rc2', '7.0.0beta1') — verbatim from Jira; the actual release fixing version is the rc without the suffix (not derived automatically to avoid guessing).
+- **PoC** (11 confirmed): Metasploit (CVE-2009-4498, CVE-2009-4502, CVE-2013-3628, CVE-2013-5743, CVE-2016-10134); EDB 40237 (SQLi), EDB 29321, EDB 47467 (CVE-2019-17382); vulhub exploit.py (CVE-2017-2824); GitHub Mr-xn/cve-2022-23131, TheN00bBuilder/cve-2022-23134-poc-and-writeup, paalbra/zabbix-zbxsec-7 (CVE-2021-46088), watchdog1337/CVE-2024-42327_Zabbix_SQLI. For the rest — only write-ups (e.g. Qualys on CVE-2024-22120) or nothing; reflected in `public_poc.notes`.
+- **scope**: records were not verified against live instances (`verified_on: []`) — a task for the scanner's active phase.
 
-## Проверка JSON
+## JSON validation
 
-- `python3 -m json.tool research/cve_records.json` — валиден.
-- Дубликатов id нет (132 уникальных).
+- `python3 -m json.tool research/cve_records.json` — valid.
+- No duplicate ids (132 unique).

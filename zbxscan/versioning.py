@@ -69,7 +69,7 @@ def compare(a: ZabbixVersion, b: ZabbixVersion) -> int:
 
 def _exclusive(entry: dict) -> bool:
     notes = str(entry.get("notes") or "")
-    return "эксклюзивный" in notes or "exclusive" in notes.lower()
+    return "exclusive" in notes.lower()
 
 
 class VersionRange:

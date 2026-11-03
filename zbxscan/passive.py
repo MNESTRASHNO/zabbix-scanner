@@ -59,7 +59,7 @@ class TargetReport:
 
 
 def _rpc(probe, fp, method, params, auth=None):
-    url = f"http{'s' if fp.port == 443 else ''}://{fp.host}:{fp.port}{fp.base}/api_jsonrpc.php"
+    url = fp.api_url()
     body = {"jsonrpc": "2.0", "method": method, "params": params, "id": 1}
     if auth is not None:
         body["auth"] = auth
@@ -119,6 +119,18 @@ def auth_context(fp: Fingerprint, probe: HttpProbe, user: str, password: str,
               auth=auth)
     ctx["scripts"] = sc.get("result") or []
     ctx["scripts_ok"] = "error" not in sc
+    # honest write-probe: guest/user roles can LIST scripts but not create
+    # them — actually exercise script.create (harmless 'true', deleted at once)
+    try:
+        from .exploits.modules.core import admin_probe
+        _ok_sc, _sc_ev = admin_probe(probe, fp, auth)
+        ctx["can_script_edit"] = bool(_ok_sc)
+        if _ok_sc:
+            _sid = ((_sc_ev.get("result") or {}).get("scriptids") or [None])[0]
+            if _sid:
+                _rpc(probe, fp, "script.delete", [_sid], auth=auth)
+    except Exception:
+        ctx["can_script_edit"] = superadmin
     ctx["ping_script"] = any("ping" in (s.get("name") or "").lower() for s in ctx["scripts"])
     hs = _rpc(probe, fp, "host.get", {"output": ["hostid"], "editable": True, "limit": 5}, auth=auth)
     hs_list = hs.get("result") or []
@@ -134,7 +146,6 @@ def auth_context(fp: Fingerprint, probe: HttpProbe, user: str, password: str,
     act = _rpc(probe, fp, "action.get", {"output": ["actionid"], "limit": 5}, auth=auth)
     ctx["actions_count"] = len(act.get("result") or [])
     ctx["actions_ok"] = "error" not in act
-    ctx["can_script_edit"] = superadmin or bool(ctx["scripts"])
     ctx["can_script_execute"] = superadmin or bool(ctx["scripts"])
     ctx["can_item_create"] = superadmin or ctx["editable_hosts_count"] > 0
     ctx["can_host_write"] = superadmin or ctx["editable_hosts_count"] > 0
@@ -159,7 +170,7 @@ def _probe_auth_methods(fp: Fingerprint, probe: HttpProbe) -> dict:
     attempt (2FA prompt detection). Best-effort, no false guarantees."""
     import re as _re
     out = {"saml_sso_present": fp.sso_present}
-    base = f"http{'s' if fp.port == 443 else ''}://{fp.host}:{fp.port}{fp.base}"
+    base = fp.web_url()
     r = probe.get(base + "/index.php", allow_redirects=True)
     html = (r.text or "") if r is not None else ""
     low = html.lower()
@@ -204,9 +215,12 @@ def _verdict(record: dict, ctx: dict) -> tuple[str, str] | None:
         "CVE-2024-36465": lambda: ("pass", "creds: any API user suffices"),
         "CVE-2024-42327": lambda: ("pass", "creds: any API user suffices"),
         "CVE-2024-36467": lambda: ("pass", "creds: any API user suffices"),
-        "CVE-2024-22120": lambda: ("pass" if (ctx.get("can_script_execute")
-                                              or superadmin) else "fail",
-                                   "creds: script execute rights"),
+        "CVE-2024-22120": lambda: (("pass", "creds: script execute rights (superadmin)")
+                                   if superadmin else
+                                   (("unknown", "creds ok — script-execute rights "
+                                     "unverifiable passively (would run a real script)")
+                                    if ctx.get("scripts") else
+                                    ("fail", "creds: no scripts visible"))),
         "CVE-2021-46088": lambda: need(ctx.get("can_script_edit") or superadmin,
                                        "script create/execute (admin role)"),
         "CVE-2022-46768": lambda: need(ctx.get("ws_10053_open"), "web-service 10053 reachable"),
@@ -238,7 +252,7 @@ def check_default_creds(fp: Fingerprint, probe: HttpProbe,
                         all_creds: bool = False, delay: float = 0.7) -> list[CredResult]:
     if not fp.api or fp.base is None:
         return []
-    url = f"http{'s' if fp.port == 443 else ''}://{fp.host}:{fp.port}{fp.base}/api_jsonrpc.php"
+    url = fp.api_url()
     creds = db.credentials()
     results: list[CredResult] = []
     seen: set[tuple[str, str]] = set()

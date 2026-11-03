@@ -78,7 +78,7 @@ def records_for_version(version_str: str, kinds=("cve", "advisory")) -> list[dic
         return []
     out = []
     for r in vulns():
-        if r["kind"] not in kinds:
+        if r["kind"] not in kinds or r.get("excluded"):
             continue
         if matches_any(v, r.get("affected_versions")):
             out.append(r)
@@ -89,7 +89,7 @@ def components_for_branch(branch: str) -> list[dict]:
     """Component (stack) records applicable to a Zabbix branch."""
     out = []
     for r in vulns():
-        if r["kind"] != "component":
+        if r["kind"] != "component" or r.get("excluded"):
             continue
         if any(_entry_covers_branch(a, branch) for a in r.get("applies_to_zabbix") or []):
             out.append(r)

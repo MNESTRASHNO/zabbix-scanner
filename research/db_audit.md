@@ -1,240 +1,240 @@
-# Аудит диапазонов db/vulns.json (read-only)
+# db/vulns.json Range Audit (read-only)
 
-Дата: 2026-10-28. Аудитор: DbRangeAudit. Источники: db/vulns.json (184 записи kind=cve/advisory), research/versions.json (patches per branch), NVD API, support.zabbix.com (ZBX-тикеты), release notes zabbix.com/rn, research/cve_records.json.
+Date: 2026-10-28. Auditor: DbRangeAudit. Sources: db/vulns.json (184 records kind=cve/advisory), research/versions.json (patches per branch), NVD API, support.zabbix.com (ZBX tickets), release notes zabbix.com/rn, research/cve_records.json.
 
-## Сводка
+## Summary
 
-| Класс дефекта | Кол-во | Суть |
+| Defect class | Count | Essence |
 |---|---|---|
-| fixed-overlap | 85 | max покрывает уже исправленные версии (ложные хиты) |
-| phantom-version | 27 | min/max/ветки, которых нет в versions.json (непроверяемые/несуществующие) |
-| ghsa-empty | 13 | advisory-kind GHSA-записи с пустыми affected_versions (зомби, не матчатся) |
-| cross-branch-max | 11 | max из чужой ветки — **уже нормализовано** в БД (max сброшен в unknown), остаточный риск unbounded |
-| branch-gap | 8 | лишние/пропущенные ветки против официальных адвайзери |
-| empty-range | 1 | CVE с полностью пустыми диапазонами (CVE-2021-46088) |
-| **Итого** | **145** | |
+| fixed-overlap | 85 | max covers already-fixed versions (false hits) |
+| phantom-version | 27 | min/max/branches absent from versions.json (unverifiable/non-existent) |
+| ghsa-empty | 13 | advisory-kind GHSA records with empty affected_versions (zombies, never match) |
+| cross-branch-max | 11 | max from a foreign branch — **already normalized** in the DB (max reset to unknown), residual risk unbounded |
+| branch-gap | 8 | extra/missing branches vs official advisories |
+| empty-range | 1 | CVE with fully empty ranges (CVE-2021-46088) |
+| **Total** | **145** | |
 
-### Критичные (ложные хиты на исправленных версиях)
+### Critical (false hits on fixed versions)
 
-1. **CVE-2022-23131** — affected содержит ветки 4.0/5.0 (4.0.0–4.0.36, 5.0.0–5.0.18), которых НЕТ в официальном тикете ZBX-20350 (SAML): там Affects 5.4.7 (+NVD: 5.4.0–5.4.8, 6.0.0alpha1). Фикс-набор записи (4.0.37/5.0.19/5.4.9/6.0.0beta2) совпадает с ZBX-20383 (Java Gateway logback), а не с ZBX-20350 (5.4.9rc2/6.0.0beta1) → ложные хиты на 4.0.x ≤4.0.36 и 5.0.x ≤5.0.18.
-2. **CVE-2023-29449/29450/29451** — ветка 6.4: max=6.4.4 при фиксе 6.4.0rc1/6.4.2rc1/6.4.1rc1: матчатся исправленные 6.4.x (NVD для 29450 явно исключает 6.4.2).
-3. **CVE-2020-15803** — 3.0/4.0/5.0: max = сам фикс-rc (3.0.32rc1/4.0.22rc1/5.0.2rc1) — диапазон = исправленная версия.
-4. **CVE-2022-43515** — 5.0/6.2: max = фикс-rc (5.0.30rc1/6.2.5rc1).
-5. **CVE-2021-27927** — 5.0: max 5.0.9 ≥ фикс 5.0.8rc1 (матчатся 5.0.8rc1/5.0.8/5.0.9).
-6. **25 адвайзери ZBX-* (70 диапазонов)** — max = версия фикса без пометки «max эксклюзивный» (напр. ZBX-10272: 2.2.21/3.0.13/3.2.10/3.4.4 = фиксы; ZBX-13260: 3.2.11 — последний патч ветки 3.2): матчатся исправленные версии.
+1. **CVE-2022-23131** — affected contains branches 4.0/5.0 (4.0.0–4.0.36, 5.0.0–5.0.18) that are NOT in the official ticket ZBX-20350 (SAML): it has Affects 5.4.7 (+NVD: 5.4.0–5.4.8, 6.0.0alpha1). The record’s fix set (4.0.37/5.0.19/5.4.9/6.0.0beta2) matches ZBX-20383 (Java Gateway logback), not ZBX-20350 (5.4.9rc2/6.0.0beta1) → false hits on 4.0.x ≤4.0.36 and 5.0.x ≤5.0.18.
+2. **CVE-2023-29449/29450/29451** — branch 6.4: max=6.4.4 with fix 6.4.0rc1/6.4.2rc1/6.4.1rc1: fixed 6.4.x match (NVD for 29450 explicitly excludes 6.4.2).
+3. **CVE-2020-15803** — 3.0/4.0/5.0: max = the fix rc itself (3.0.32rc1/4.0.22rc1/5.0.2rc1) — the range = the fixed version.
+4. **CVE-2022-43515** — 5.0/6.2: max = the fix rc (5.0.30rc1/6.2.5rc1).
+5. **CVE-2021-27927** — 5.0: max 5.0.9 ≥ fix 5.0.8rc1 (matches 5.0.8rc1/5.0.8/5.0.9).
+6. **25 ZBX-* advisories (70 ranges)** — max = the fix version without the 'max exclusive' marker (e.g. ZBX-10272: 2.2.21/3.0.13/3.2.10/3.4.4 = fixes; ZBX-13260: 3.2.11 — the last patch of branch 3.2): fixed versions match.
 
-### Ложные пропуски
-- **CVE-2022-35229** 4.0: max='4.0.0' (exclusive) — матчится только <4.0.0 → пропуск 4.0.1–4.0.42.
-- **CVE-2023-29449/29450/29451**: нет ветки 6.2 (фиксы 6.2.8rc1/6.2.9rc2 есть; release notes 6.2.8/6.2.9 содержат ZBX-22589/22588/22587) → пропуск 6.2.x.
-- **CVE-2021-46088**: все диапазоны unknown (заполнить по NVD).
+### False negatives
+- **CVE-2022-35229** 4.0: max='4.0.0' (exclusive) — only <4.0.0 matches → 4.0.1–4.0.42 missed.
+- **CVE-2023-29449/29450/29451**: branch 6.2 missing (fixes 6.2.8rc1/6.2.9rc2 exist; release notes 6.2.8/6.2.9 contain ZBX-22589/22588/22587) → 6.2.x missed.
+- **CVE-2021-46088**: all ranges unknown (fill in from NVD).
 
 ---
 
-## 1. Cross-branch max (max из другой ветки)
+## 1. Cross-branch max (max from another branch)
 
-Неразрешённых числовых cross-branch max **нет** (0 случаев: числовой префикс max совпадает с branch). Все 11 случаев — **уже нормализованы** в БД: max сброшен в `unknown` с маркером в notes. Остаточный риск — `max=unknown` трактуется как отсутствие верхней границы (матчит всю ветку, включая исправленные).
+Unresolved numeric cross-branch max values: **none** (0 cases: the numeric prefix of max matches the branch). All 11 cases are **already normalized** in the DB: max reset to `unknown` with a marker in notes. Residual risk — `max=unknown` is treated as no upper bound (matches the whole branch, including fixed versions).
 
-| id | branch | min | max (сейчас) | fixed_versions | что было |
+| id | branch | min | max (current) | fixed_versions | what it was |
 |---|---|---|---|---|---|
-| CVE-2016-10742 | 3.1 | 3.1.0 | unknown | 2.2.21rc1,3.0.13rc1,3.2.10rc1,3.4.4rc1 | был 3.2.9 (чужая ветка) |
-| CVE-2016-10742 | 3.3 | 3.3.0 | unknown | 2.2.21rc1,3.0.13rc1,3.2.10rc1,3.4.4rc1 | был 3.4.3 (чужая ветка) |
-| CVE-2020-11800 | 2.2 | 2.2.0 | unknown | 3.0.31rc1 | был 3.0.31 (чужая ветка) |
-| ZBX-10660 | 2.0 | unknown | unknown |  | был 5.0 (чужая ветка) |
-| ZBX-14975 | 3.4 | unknown | unknown |  | был 7.4 (чужая ветка) |
-| ZBX-16765 | 3.0 | unknown | unknown |  | был 5.2 (чужая ветка) |
-| ZBX-17742 | 5.0 | unknown | unknown |  | был 6.4 (чужая ветка) |
-| ZBX-18134 | 5.0 | unknown | unknown | 5.4.0alpha1 | был 5.4 (чужая ветка) |
-| ZBX-18224 | 5.0 | unknown | unknown | 5.4.0 | был 5.2 (чужая ветка) |
-| ZBX-21376 | 6.0 | unknown | unknown |  | был 7.4 (чужая ветка) |
-| ZBX-24939 | 6.0 | unknown | unknown |  | был 7.4 (чужая ветка) |
+| CVE-2016-10742 | 3.1 | 3.1.0 | unknown | 2.2.21rc1,3.0.13rc1,3.2.10rc1,3.4.4rc1 | was 3.2.9 (foreign branch) |
+| CVE-2016-10742 | 3.3 | 3.3.0 | unknown | 2.2.21rc1,3.0.13rc1,3.2.10rc1,3.4.4rc1 | was 3.4.3 (foreign branch) |
+| CVE-2020-11800 | 2.2 | 2.2.0 | unknown | 3.0.31rc1 | was 3.0.31 (foreign branch) |
+| ZBX-10660 | 2.0 | unknown | unknown |  | was 5.0 (foreign branch) |
+| ZBX-14975 | 3.4 | unknown | unknown |  | was 7.4 (foreign branch) |
+| ZBX-16765 | 3.0 | unknown | unknown |  | was 5.2 (foreign branch) |
+| ZBX-17742 | 5.0 | unknown | unknown |  | was 6.4 (foreign branch) |
+| ZBX-18134 | 5.0 | unknown | unknown | 5.4.0alpha1 | was 5.4 (foreign branch) |
+| ZBX-18224 | 5.0 | unknown | unknown | 5.4.0 | was 5.2 (foreign branch) |
+| ZBX-21376 | 6.0 | unknown | unknown |  | was 7.4 (foreign branch) |
+| ZBX-24939 | 6.0 | unknown | unknown |  | was 7.4 (foreign branch) |
 
 ---
 
-## 2. Max покрывает уже исправленные версии (fixed-overlap)
+## 2. Max covers already-fixed versions (fixed-overlap)
 
-Правило: фикс F той же ветки в fixed_versions, max не помечен «эксклюзивный» и max ≥ F → диапазон матчится на исправленную версию.
+Rule: fix F of the same branch in fixed_versions, max not marked 'exclusive' and max ≥ F → the range matches the fixed version.
 
 ### 2a. CVE
 
-| id | branch | min | max | фикс (та же ветка) | рекомендация |
+| id | branch | min | max | fix (same branch) | recommendation |
 |---|---|---|---|---|---|
-| CVE-2009-4498 | 1.6 | 1.6.6 | 1.6.8 | 1.6.8 | max -> 1.6.7 (предыдущий патч перед фиксом 1.6.8), либо пометить notes='max эксклюзивный' (affected < 1.6.8) |
-| CVE-2009-4499 | 1.6 | 1.6.6 | 1.6.7 | 1.6.7 | max -> 1.6.6 (предыдущий патч перед фиксом 1.6.7), либо пометить notes='max эксклюзивный' (affected < 1.6.7) |
-| CVE-2009-4501 | 1.6 | 1.6.6 | 1.6.7 | 1.6.7 | max -> 1.6.6 (предыдущий патч перед фиксом 1.6.7), либо пометить notes='max эксклюзивный' (affected < 1.6.7) |
-| CVE-2009-4502 | 1.6 | unknown | 1.6.6 | 1.6.6 | max -> 1.6.5 (предыдущий патч перед фиксом 1.6.6), либо пометить notes='max эксклюзивный' (affected < 1.6.6) |
-| CVE-2011-3265 | 1.8 | 1.8 | 1.8.6rc2 | 1.8.6 | max -> 1.8.5 (предыдущий патч перед фиксом 1.8.6), либо пометить notes='max эксклюзивный' (affected < 1.8.6) |
-| CVE-2013-5743 | 2.1 | 2.1.0 | 2.1.7 | 2.1.7 | max -> 2.1.6 (предыдущий патч перед фиксом 2.1.7), либо пометить notes='max эксклюзивный' (affected < 2.1.7) |
-| CVE-2020-15803 | 3.0 | 3.0.32rc1 | 3.0.32rc1 | 3.0.32rc1 | max -> 3.0.31 (предыдущий патч перед фиксом 3.0.32rc1), либо пометить notes='max эксклюзивный' (affected < 3.0.32rc1) |
-| CVE-2020-15803 | 4.0 | 4.0.0 | 4.0.22rc1 | 4.0.22rc1 | max -> 4.0.21 (предыдущий патч перед фиксом 4.0.22rc1), либо пометить notes='max эксклюзивный' (affected < 4.0.22rc1) |
-| CVE-2020-15803 | 5.0 | 5.0.0 | 5.0.2rc1 | 5.0.2rc1 | max -> 5.0.1 (предыдущий патч перед фиксом 5.0.2rc1), либо пометить notes='max эксклюзивный' (affected < 5.0.2rc1) |
-| CVE-2021-27927 | 5.0 | 5.0.0 | 5.0.9 | 5.0.8rc1 | max -> 5.0.7 (предыдущий патч перед фиксом 5.0.8rc1), либо пометить notes='max эксклюзивный' (affected < 5.0.8rc1) |
-| CVE-2022-43515 | 5.0 | 5.0.0 | 5.0.30rc1 | 5.0.30rc1 | max -> 5.0.29 (предыдущий патч перед фиксом 5.0.30rc1), либо пометить notes='max эксклюзивный' (affected < 5.0.30rc1) |
-| CVE-2022-43515 | 6.2 | 6.2.0 | 6.2.5rc1 | 6.2.5rc1 | max -> 6.2.4 (предыдущий патч перед фиксом 6.2.5rc1), либо пометить notes='max эксклюзивный' (affected < 6.2.5rc1) |
-| CVE-2023-29449 | 6.4 | 6.4.0alpha1 | 6.4.4 | 6.4.0rc1 | пометить notes='max эксклюзивный' (affected < 6.4.0rc1) |
-| CVE-2023-29450 | 6.4 | 6.4.0 | 6.4.4 | 6.4.2rc1 | max -> 6.4.1 (предыдущий патч перед фиксом 6.4.2rc1), либо пометить notes='max эксклюзивный' (affected < 6.4.2rc1) |
-| CVE-2023-29451 | 6.4 | 6.4.0alpha1 | 6.4.4 | 6.4.1rc1 | max -> 6.4.0 (предыдущий патч перед фиксом 6.4.1rc1), либо пометить notes='max эксклюзивный' (affected < 6.4.1rc1) |
+| CVE-2009-4498 | 1.6 | 1.6.6 | 1.6.8 | 1.6.8 | max -> 1.6.7 (the previous patch before fix 1.6.8), or mark notes='max exclusive' (affected < 1.6.8) |
+| CVE-2009-4499 | 1.6 | 1.6.6 | 1.6.7 | 1.6.7 | max -> 1.6.6 (the previous patch before fix 1.6.7), or mark notes='max exclusive' (affected < 1.6.7) |
+| CVE-2009-4501 | 1.6 | 1.6.6 | 1.6.7 | 1.6.7 | max -> 1.6.6 (the previous patch before fix 1.6.7), or mark notes='max exclusive' (affected < 1.6.7) |
+| CVE-2009-4502 | 1.6 | unknown | 1.6.6 | 1.6.6 | max -> 1.6.5 (the previous patch before fix 1.6.6), or mark notes='max exclusive' (affected < 1.6.6) |
+| CVE-2011-3265 | 1.8 | 1.8 | 1.8.6rc2 | 1.8.6 | max -> 1.8.5 (the previous patch before fix 1.8.6), or mark notes='max exclusive' (affected < 1.8.6) |
+| CVE-2013-5743 | 2.1 | 2.1.0 | 2.1.7 | 2.1.7 | max -> 2.1.6 (the previous patch before fix 2.1.7), or mark notes='max exclusive' (affected < 2.1.7) |
+| CVE-2020-15803 | 3.0 | 3.0.32rc1 | 3.0.32rc1 | 3.0.32rc1 | max -> 3.0.31 (the previous patch before fix 3.0.32rc1), or mark notes='max exclusive' (affected < 3.0.32rc1) |
+| CVE-2020-15803 | 4.0 | 4.0.0 | 4.0.22rc1 | 4.0.22rc1 | max -> 4.0.21 (the previous patch before fix 4.0.22rc1), or mark notes='max exclusive' (affected < 4.0.22rc1) |
+| CVE-2020-15803 | 5.0 | 5.0.0 | 5.0.2rc1 | 5.0.2rc1 | max -> 5.0.1 (the previous patch before fix 5.0.2rc1), or mark notes='max exclusive' (affected < 5.0.2rc1) |
+| CVE-2021-27927 | 5.0 | 5.0.0 | 5.0.9 | 5.0.8rc1 | max -> 5.0.7 (the previous patch before fix 5.0.8rc1), or mark notes='max exclusive' (affected < 5.0.8rc1) |
+| CVE-2022-43515 | 5.0 | 5.0.0 | 5.0.30rc1 | 5.0.30rc1 | max -> 5.0.29 (the previous patch before fix 5.0.30rc1), or mark notes='max exclusive' (affected < 5.0.30rc1) |
+| CVE-2022-43515 | 6.2 | 6.2.0 | 6.2.5rc1 | 6.2.5rc1 | max -> 6.2.4 (the previous patch before fix 6.2.5rc1), or mark notes='max exclusive' (affected < 6.2.5rc1) |
+| CVE-2023-29449 | 6.4 | 6.4.0alpha1 | 6.4.4 | 6.4.0rc1 | mark notes='max exclusive' (affected < 6.4.0rc1) |
+| CVE-2023-29450 | 6.4 | 6.4.0 | 6.4.4 | 6.4.2rc1 | max -> 6.4.1 (the previous patch before fix 6.4.2rc1), or mark notes='max exclusive' (affected < 6.4.2rc1) |
+| CVE-2023-29451 | 6.4 | 6.4.0alpha1 | 6.4.4 | 6.4.1rc1 | max -> 6.4.0 (the previous patch before fix 6.4.1rc1), or mark notes='max exclusive' (affected < 6.4.1rc1) |
 
-### 2b. Адвайзери ZBX-* (max == версия фикса, без пометки «эксклюзивный»)
+### 2b. ZBX-* advisories (max == the fix version, without the 'exclusive' marker)
 
-| id | branch | min | max (=фикс) | full fixed_versions | рекомендация |
+| id | branch | min | max (=fix) | full fixed_versions | recommendation |
 |---|---|---|---|---|---|
-| ZBX-10272 | 2.2 | unknown | 2.2.21 | 2.2.21,3.0.13,3.2.10,3.4.4 | max -> 2.2.20 (предыдущий патч перед фиксом 2.2.21), либо пометить notes='max эксклюзивный' (affected < 2.2.21) |
-| ZBX-10272 | 3.0 | unknown | 3.0.13 | 2.2.21,3.0.13,3.2.10,3.4.4 | max -> 3.0.12 (предыдущий патч перед фиксом 3.0.13), либо пометить notes='max эксклюзивный' (affected < 3.0.13) |
-| ZBX-10272 | 3.2 | unknown | 3.2.10 | 2.2.21,3.0.13,3.2.10,3.4.4 | max -> 3.2.9 (предыдущий патч перед фиксом 3.2.10), либо пометить notes='max эксклюзивный' (affected < 3.2.10) |
-| ZBX-10272 | 3.4 | unknown | 3.4.4 | 2.2.21,3.0.13,3.2.10,3.4.4 | max -> 3.4.3 (предыдущий патч перед фиксом 3.4.4), либо пометить notes='max эксклюзивный' (affected < 3.4.4) |
-| ZBX-10318 | 3.0 | unknown | 3.0.2 | 3.0.2 | max -> 3.0.1 (предыдущий патч перед фиксом 3.0.2), либо пометить notes='max эксклюзивный' (affected < 3.0.2) |
-| ZBX-10319 | 2.2 | unknown | 2.2.12 | 2.2.12,2.4.8,3.0.1 | max -> 2.2.11 (предыдущий патч перед фиксом 2.2.12), либо пометить notes='max эксклюзивный' (affected < 2.2.12) |
-| ZBX-10319 | 2.4 | unknown | 2.4.8 | 2.2.12,2.4.8,3.0.1 | max -> 2.4.7 (предыдущий патч перед фиксом 2.4.8), либо пометить notes='max эксклюзивный' (affected < 2.4.8) |
-| ZBX-10319 | 3.0 | unknown | 3.0.1 | 2.2.12,2.4.8,3.0.1 | max -> 3.0.0 (предыдущий патч перед фиксом 3.0.1), либо пометить notes='max эксклюзивный' (affected < 3.0.1) |
-| ZBX-10404 | 3.0 | unknown | 3.0.27 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 3.0.26 (предыдущий патч перед фиксом 3.0.27), либо пометить notes='max эксклюзивный' (affected < 3.0.27) |
-| ZBX-10404 | 4.0 | unknown | 4.0.7 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.0.6 (предыдущий патч перед фиксом 4.0.7), либо пометить notes='max эксклюзивный' (affected < 4.0.7) |
-| ZBX-10404 | 4.2 | unknown | 4.2.1 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.2.0 (предыдущий патч перед фиксом 4.2.1), либо пометить notes='max эксклюзивный' (affected < 4.2.1) |
-| ZBX-11483 | 2.0 | unknown | 2.0.20 | 2.0.20,2.2.16,3.0.6,3.2.2,3.4.0alpha1 | max -> 2.0.19 (предыдущий патч перед фиксом 2.0.20), либо пометить notes='max эксклюзивный' (affected < 2.0.20) |
-| ZBX-11483 | 2.2 | unknown | 2.2.16 | 2.0.20,2.2.16,3.0.6,3.2.2,3.4.0alpha1 | max -> 2.2.15 (предыдущий патч перед фиксом 2.2.16), либо пометить notes='max эксклюзивный' (affected < 2.2.16) |
-| ZBX-11483 | 3.0 | unknown | 3.0.6 | 2.0.20,2.2.16,3.0.6,3.2.2,3.4.0alpha1 | max -> 3.0.5 (предыдущий патч перед фиксом 3.0.6), либо пометить notes='max эксклюзивный' (affected < 3.0.6) |
-| ZBX-11483 | 3.2 | unknown | 3.2.2 | 2.0.20,2.2.16,3.0.6,3.2.2,3.4.0alpha1 | max -> 3.2.1 (предыдущий патч перед фиксом 3.2.2), либо пометить notes='max эксклюзивный' (affected < 3.2.2) |
-| ZBX-12768 | 2.2 | unknown | 2.2.20 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 2.2.19 (предыдущий патч перед фиксом 2.2.20), либо пометить notes='max эксклюзивный' (affected < 2.2.20) |
-| ZBX-12768 | 3.0 | unknown | 3.0.11 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.0.10 (предыдущий патч перед фиксом 3.0.11), либо пометить notes='max эксклюзивный' (affected < 3.0.11) |
-| ZBX-12768 | 3.2 | unknown | 3.2.8 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.2.7 (предыдущий патч перед фиксом 3.2.8), либо пометить notes='max эксклюзивный' (affected < 3.2.8) |
-| ZBX-12768 | 3.4 | unknown | 3.4.2 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.4.1 (предыдущий патч перед фиксом 3.4.2), либо пометить notes='max эксклюзивный' (affected < 3.4.2) |
-| ZBX-12769 | 2.2 | unknown | 2.2.20 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 2.2.19 (предыдущий патч перед фиксом 2.2.20), либо пометить notes='max эксклюзивный' (affected < 2.2.20) |
-| ZBX-12769 | 3.0 | unknown | 3.0.11 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.0.10 (предыдущий патч перед фиксом 3.0.11), либо пометить notes='max эксклюзивный' (affected < 3.0.11) |
-| ZBX-12769 | 3.2 | unknown | 3.2.8 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.2.7 (предыдущий патч перед фиксом 3.2.8), либо пометить notes='max эксклюзивный' (affected < 3.2.8) |
-| ZBX-12769 | 3.4 | unknown | 3.4.2 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.4.1 (предыдущий патч перед фиксом 3.4.2), либо пометить notes='max эксклюзивный' (affected < 3.4.2) |
-| ZBX-13260 | 3.0 | unknown | 3.0.14 | 3.0.14,3.2.11,3.4.5 | max -> 3.0.13 (предыдущий патч перед фиксом 3.0.14), либо пометить notes='max эксклюзивный' (affected < 3.0.14) |
-| ZBX-13260 | 3.2 | unknown | 3.2.11 | 3.0.14,3.2.11,3.4.5 | max -> 3.2.10 (предыдущий патч перед фиксом 3.2.11), либо пометить notes='max эксклюзивный' (affected < 3.2.11) |
-| ZBX-13260 | 3.4 | unknown | 3.4.5 | 3.0.14,3.2.11,3.4.5 | max -> 3.4.4 (предыдущий патч перед фиксом 3.4.5), либо пометить notes='max эксклюзивный' (affected < 3.4.5) |
-| ZBX-13261 | 2.2 | unknown | 2.2.21 | 2.2.21,3.0.14,3.2.11,3.4.5 | max -> 2.2.20 (предыдущий патч перед фиксом 2.2.21), либо пометить notes='max эксклюзивный' (affected < 2.2.21) |
-| ZBX-13261 | 3.0 | unknown | 3.0.14 | 2.2.21,3.0.14,3.2.11,3.4.5 | max -> 3.0.13 (предыдущий патч перед фиксом 3.0.14), либо пометить notes='max эксклюзивный' (affected < 3.0.14) |
-| ZBX-13261 | 3.2 | unknown | 3.2.11 | 2.2.21,3.0.14,3.2.11,3.4.5 | max -> 3.2.10 (предыдущий патч перед фиксом 3.2.11), либо пометить notes='max эксклюзивный' (affected < 3.2.11) |
-| ZBX-13261 | 3.4 | unknown | 3.4.5 | 2.2.21,3.0.14,3.2.11,3.4.5 | max -> 3.4.4 (предыдущий патч перед фиксом 3.4.5), либо пометить notes='max эксклюзивный' (affected < 3.4.5) |
-| ZBX-13345 | 3.0 | unknown | 3.0.15 | 3.0.15,3.4.7,4.0.0alpha3 | max -> 3.0.14 (предыдущий патч перед фиксом 3.0.15), либо пометить notes='max эксклюзивный' (affected < 3.0.15) |
-| ZBX-13345 | 3.4 | unknown | 3.4.7 | 3.0.15,3.4.7,4.0.0alpha3 | max -> 3.4.6 (предыдущий патч перед фиксом 3.4.7), либо пометить notes='max эксклюзивный' (affected < 3.4.7) |
-| ZBX-14336 | 3.0 | unknown | 3.0.17 | 3.0.17,3.4.9,4.0.0alpha6 | max -> 3.0.16 (предыдущий патч перед фиксом 3.0.17), либо пометить notes='max эксклюзивный' (affected < 3.0.17) |
-| ZBX-14336 | 3.4 | unknown | 3.4.9 | 3.0.17,3.4.9,4.0.0alpha6 | max -> 3.4.8 (предыдущий патч перед фиксом 3.4.9), либо пометить notes='max эксклюзивный' (affected < 3.4.9) |
-| ZBX-14337 | 3.4 | unknown | 3.4.9 | 3.4.9,4.0.0alpha6 | max -> 3.4.8 (предыдущий патч перед фиксом 3.4.9), либо пометить notes='max эксклюзивный' (affected < 3.4.9) |
-| ZBX-15708 | 4.0 | unknown | 4.0.7 | 4.0.7,4.2.1,4.4.0alpha1 | max -> 4.0.6 (предыдущий патч перед фиксом 4.0.7), либо пометить notes='max эксклюзивный' (affected < 4.0.7) |
-| ZBX-15708 | 4.2 | unknown | 4.2.1 | 4.0.7,4.2.1,4.4.0alpha1 | max -> 4.2.0 (предыдущий патч перед фиксом 4.2.1), либо пометить notes='max эксклюзивный' (affected < 4.2.1) |
-| ZBX-15870 | 3.0 | unknown | 3.0.27 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 3.0.26 (предыдущий патч перед фиксом 3.0.27), либо пометить notes='max эксклюзивный' (affected < 3.0.27) |
-| ZBX-15870 | 4.0 | unknown | 4.0.7 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.0.6 (предыдущий патч перед фиксом 4.0.7), либо пометить notes='max эксклюзивный' (affected < 4.0.7) |
-| ZBX-15870 | 4.2 | unknown | 4.2.1 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.2.0 (предыдущий патч перед фиксом 4.2.1), либо пометить notes='max эксклюзивный' (affected < 4.2.1) |
-| ZBX-16019 | 3.0 | unknown | 3.0.27 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 3.0.26 (предыдущий патч перед фиксом 3.0.27), либо пометить notes='max эксклюзивный' (affected < 3.0.27) |
-| ZBX-16019 | 4.0 | unknown | 4.0.7 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.0.6 (предыдущий патч перед фиксом 4.0.7), либо пометить notes='max эксклюзивный' (affected < 4.0.7) |
-| ZBX-16019 | 4.2 | unknown | 4.2.1 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.2.0 (предыдущий патч перед фиксом 4.2.1), либо пометить notes='max эксклюзивный' (affected < 4.2.1) |
-| ZBX-16103 | 4.0 | unknown | 4.0.11 | 4.0.11,4.2.5,4.4.0alpha1 | max -> 4.0.10 (предыдущий патч перед фиксом 4.0.11), либо пометить notes='max эксклюзивный' (affected < 4.0.11) |
-| ZBX-16103 | 4.2 | unknown | 4.2.5 | 4.0.11,4.2.5,4.4.0alpha1 | max -> 4.2.4 (предыдущий патч перед фиксом 4.2.5), либо пометить notes='max эксклюзивный' (affected < 4.2.5) |
-| ZBX-16750 | 3.0 | unknown | 3.0.29 | 3.0.29,4.0.14,4.2.8,4.4.1,5.0.0alpha1 | max -> 3.0.28 (предыдущий патч перед фиксом 3.0.29), либо пометить notes='max эксклюзивный' (affected < 3.0.29) |
-| ZBX-16750 | 4.0 | unknown | 4.0.14 | 3.0.29,4.0.14,4.2.8,4.4.1,5.0.0alpha1 | max -> 4.0.13 (предыдущий патч перед фиксом 4.0.14), либо пометить notes='max эксклюзивный' (affected < 4.0.14) |
-| ZBX-16750 | 4.2 | unknown | 4.2.8 | 3.0.29,4.0.14,4.2.8,4.4.1,5.0.0alpha1 | max -> 4.2.7 (предыдущий патч перед фиксом 4.2.8), либо пометить notes='max эксклюзивный' (affected < 4.2.8) |
-| ZBX-16750 | 4.4 | unknown | 4.4.1 | 3.0.29,4.0.14,4.2.8,4.4.1,5.0.0alpha1 | max -> 4.4.0 (предыдущий патч перед фиксом 4.4.1), либо пометить notes='max эксклюзивный' (affected < 4.4.1) |
-| ZBX-17101 | 3.0 | unknown | 3.0.29 | 3.0.29,4.0.16,4.4.4,5.0.0alpha1 | max -> 3.0.28 (предыдущий патч перед фиксом 3.0.29), либо пометить notes='max эксклюзивный' (affected < 3.0.29) |
-| ZBX-17101 | 4.0 | unknown | 4.0.16 | 3.0.29,4.0.16,4.4.4,5.0.0alpha1 | max -> 4.0.15 (предыдущий патч перед фиксом 4.0.16), либо пометить notes='max эксклюзивный' (affected < 4.0.16) |
-| ZBX-17101 | 4.4 | unknown | 4.4.4 | 3.0.29,4.0.16,4.4.4,5.0.0alpha1 | max -> 4.4.3 (предыдущий патч перед фиксом 4.4.4), либо пометить notes='max эксклюзивный' (affected < 4.4.4) |
-| ZBX-17997 | 5.0 | unknown | 5.0.3 | 5.0.3,5.2.0alpha1 | max -> 5.0.2 (предыдущий патч перед фиксом 5.0.3), либо пометить notes='max эксклюзивный' (affected < 5.0.3) |
-| ZBX-17997 | 5.2 | unknown | 5.2.0alpha1 | 5.0.3,5.2.0alpha1 | пометить notes='max эксклюзивный' (affected < 5.2.0alpha1) |
-| ZBX-18884 | 4.0 | unknown | 4.0.28 | 4.0.28,5.0.8,5.2.4,5.4.0alpha1 | max -> 4.0.27 (предыдущий патч перед фиксом 4.0.28), либо пометить notes='max эксклюзивный' (affected < 4.0.28) |
-| ZBX-18884 | 5.0 | unknown | 5.0.8 | 4.0.28,5.0.8,5.2.4,5.4.0alpha1 | max -> 5.0.7 (предыдущий патч перед фиксом 5.0.8), либо пометить notes='max эксклюзивный' (affected < 5.0.8) |
-| ZBX-18884 | 5.2 | unknown | 5.2.4 | 4.0.28,5.0.8,5.2.4,5.4.0alpha1 | max -> 5.2.3 (предыдущий патч перед фиксом 5.2.4), либо пометить notes='max эксклюзивный' (affected < 5.2.4) |
-| ZBX-19149 | 4.0 | unknown | 4.0.30 | 4.0.30,5.0.10,5.2.6,5.4.0beta1 | max -> 4.0.29 (предыдущий патч перед фиксом 4.0.30), либо пометить notes='max эксклюзивный' (affected < 4.0.30) |
-| ZBX-19149 | 5.0 | unknown | 5.0.10 | 4.0.30,5.0.10,5.2.6,5.4.0beta1 | max -> 5.0.9 (предыдущий патч перед фиксом 5.0.10), либо пометить notes='max эксклюзивный' (affected < 5.0.10) |
-| ZBX-19149 | 5.2 | unknown | 5.2.6 | 4.0.30,5.0.10,5.2.6,5.4.0beta1 | max -> 5.2.5 (предыдущий патч перед фиксом 5.2.6), либо пометить notes='max эксклюзивный' (affected < 5.2.6) |
-| ZBX-19300 | 4.0 | unknown | 4.0.32 | 4.0.32,5.0.13,5.2.7,5.4.1,6.0.0alpha1 | max -> 4.0.31 (предыдущий патч перед фиксом 4.0.32), либо пометить notes='max эксклюзивный' (affected < 4.0.32) |
-| ZBX-19300 | 5.0 | unknown | 5.0.13 | 4.0.32,5.0.13,5.2.7,5.4.1,6.0.0alpha1 | max -> 5.0.12 (предыдущий патч перед фиксом 5.0.13), либо пометить notes='max эксклюзивный' (affected < 5.0.13) |
-| ZBX-19300 | 5.2 | unknown | 5.2.7 | 4.0.32,5.0.13,5.2.7,5.4.1,6.0.0alpha1 | max -> 5.2.6 (предыдущий патч перед фиксом 5.2.7), либо пометить notes='max эксклюзивный' (affected < 5.2.7) |
-| ZBX-19300 | 5.4 | unknown | 5.4.1 | 4.0.32,5.0.13,5.2.7,5.4.1,6.0.0alpha1 | max -> 5.4.0 (предыдущий патч перед фиксом 5.4.1), либо пометить notes='max эксклюзивный' (affected < 5.4.1) |
-| ZBX-22718 | 6.0 | unknown | 6.0.17 | 6.0.17,6.4.2,7.0.0alpha1 | max -> 6.0.16 (предыдущий патч перед фиксом 6.0.17), либо пометить notes='max эксклюзивный' (affected < 6.0.17) |
-| ZBX-22718 | 6.4 | unknown | 6.4.2 | 6.0.17,6.4.2,7.0.0alpha1 | max -> 6.4.1 (предыдущий патч перед фиксом 6.4.2), либо пометить notes='max эксклюзивный' (affected < 6.4.2) |
-| ZBX-22719 | 6.0 | unknown | 6.0.17 | 6.0.17,6.4.2,7.0.0alpha1 | max -> 6.0.16 (предыдущий патч перед фиксом 6.0.17), либо пометить notes='max эксклюзивный' (affected < 6.0.17) |
-| ZBX-22719 | 6.4 | unknown | 6.4.2 | 6.0.17,6.4.2,7.0.0alpha1 | max -> 6.4.1 (предыдущий патч перед фиксом 6.4.2), либо пометить notes='max эксклюзивный' (affected < 6.4.2) |
-| ZBX-22727 | 6.0 | unknown | 6.0.18 | 6.0.18,6.4.2,7.0.0alpha1 | max -> 6.0.17 (предыдущий патч перед фиксом 6.0.18), либо пометить notes='max эксклюзивный' (affected < 6.0.18) |
-| ZBX-22727 | 6.4 | unknown | 6.4.2 | 6.0.18,6.4.2,7.0.0alpha1 | max -> 6.4.1 (предыдущий патч перед фиксом 6.4.2), либо пометить notes='max эксклюзивный' (affected < 6.4.2) |
+| ZBX-10272 | 2.2 | unknown | 2.2.21 | 2.2.21,3.0.13,3.2.10,3.4.4 | max -> 2.2.20 (the previous patch before fix 2.2.21), or mark notes='max exclusive' (affected < 2.2.21) |
+| ZBX-10272 | 3.0 | unknown | 3.0.13 | 2.2.21,3.0.13,3.2.10,3.4.4 | max -> 3.0.12 (the previous patch before fix 3.0.13), or mark notes='max exclusive' (affected < 3.0.13) |
+| ZBX-10272 | 3.2 | unknown | 3.2.10 | 2.2.21,3.0.13,3.2.10,3.4.4 | max -> 3.2.9 (the previous patch before fix 3.2.10), or mark notes='max exclusive' (affected < 3.2.10) |
+| ZBX-10272 | 3.4 | unknown | 3.4.4 | 2.2.21,3.0.13,3.2.10,3.4.4 | max -> 3.4.3 (the previous patch before fix 3.4.4), or mark notes='max exclusive' (affected < 3.4.4) |
+| ZBX-10318 | 3.0 | unknown | 3.0.2 | 3.0.2 | max -> 3.0.1 (the previous patch before fix 3.0.2), or mark notes='max exclusive' (affected < 3.0.2) |
+| ZBX-10319 | 2.2 | unknown | 2.2.12 | 2.2.12,2.4.8,3.0.1 | max -> 2.2.11 (the previous patch before fix 2.2.12), or mark notes='max exclusive' (affected < 2.2.12) |
+| ZBX-10319 | 2.4 | unknown | 2.4.8 | 2.2.12,2.4.8,3.0.1 | max -> 2.4.7 (the previous patch before fix 2.4.8), or mark notes='max exclusive' (affected < 2.4.8) |
+| ZBX-10319 | 3.0 | unknown | 3.0.1 | 2.2.12,2.4.8,3.0.1 | max -> 3.0.0 (the previous patch before fix 3.0.1), or mark notes='max exclusive' (affected < 3.0.1) |
+| ZBX-10404 | 3.0 | unknown | 3.0.27 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 3.0.26 (the previous patch before fix 3.0.27), or mark notes='max exclusive' (affected < 3.0.27) |
+| ZBX-10404 | 4.0 | unknown | 4.0.7 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.0.6 (the previous patch before fix 4.0.7), or mark notes='max exclusive' (affected < 4.0.7) |
+| ZBX-10404 | 4.2 | unknown | 4.2.1 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.2.0 (the previous patch before fix 4.2.1), or mark notes='max exclusive' (affected < 4.2.1) |
+| ZBX-11483 | 2.0 | unknown | 2.0.20 | 2.0.20,2.2.16,3.0.6,3.2.2,3.4.0alpha1 | max -> 2.0.19 (the previous patch before fix 2.0.20), or mark notes='max exclusive' (affected < 2.0.20) |
+| ZBX-11483 | 2.2 | unknown | 2.2.16 | 2.0.20,2.2.16,3.0.6,3.2.2,3.4.0alpha1 | max -> 2.2.15 (the previous patch before fix 2.2.16), or mark notes='max exclusive' (affected < 2.2.16) |
+| ZBX-11483 | 3.0 | unknown | 3.0.6 | 2.0.20,2.2.16,3.0.6,3.2.2,3.4.0alpha1 | max -> 3.0.5 (the previous patch before fix 3.0.6), or mark notes='max exclusive' (affected < 3.0.6) |
+| ZBX-11483 | 3.2 | unknown | 3.2.2 | 2.0.20,2.2.16,3.0.6,3.2.2,3.4.0alpha1 | max -> 3.2.1 (the previous patch before fix 3.2.2), or mark notes='max exclusive' (affected < 3.2.2) |
+| ZBX-12768 | 2.2 | unknown | 2.2.20 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 2.2.19 (the previous patch before fix 2.2.20), or mark notes='max exclusive' (affected < 2.2.20) |
+| ZBX-12768 | 3.0 | unknown | 3.0.11 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.0.10 (the previous patch before fix 3.0.11), or mark notes='max exclusive' (affected < 3.0.11) |
+| ZBX-12768 | 3.2 | unknown | 3.2.8 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.2.7 (the previous patch before fix 3.2.8), or mark notes='max exclusive' (affected < 3.2.8) |
+| ZBX-12768 | 3.4 | unknown | 3.4.2 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.4.1 (the previous patch before fix 3.4.2), or mark notes='max exclusive' (affected < 3.4.2) |
+| ZBX-12769 | 2.2 | unknown | 2.2.20 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 2.2.19 (the previous patch before fix 2.2.20), or mark notes='max exclusive' (affected < 2.2.20) |
+| ZBX-12769 | 3.0 | unknown | 3.0.11 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.0.10 (the previous patch before fix 3.0.11), or mark notes='max exclusive' (affected < 3.0.11) |
+| ZBX-12769 | 3.2 | unknown | 3.2.8 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.2.7 (the previous patch before fix 3.2.8), or mark notes='max exclusive' (affected < 3.2.8) |
+| ZBX-12769 | 3.4 | unknown | 3.4.2 | 2.2.20,3.0.11,3.2.8,3.4.2 | max -> 3.4.1 (the previous patch before fix 3.4.2), or mark notes='max exclusive' (affected < 3.4.2) |
+| ZBX-13260 | 3.0 | unknown | 3.0.14 | 3.0.14,3.2.11,3.4.5 | max -> 3.0.13 (the previous patch before fix 3.0.14), or mark notes='max exclusive' (affected < 3.0.14) |
+| ZBX-13260 | 3.2 | unknown | 3.2.11 | 3.0.14,3.2.11,3.4.5 | max -> 3.2.10 (the previous patch before fix 3.2.11), or mark notes='max exclusive' (affected < 3.2.11) |
+| ZBX-13260 | 3.4 | unknown | 3.4.5 | 3.0.14,3.2.11,3.4.5 | max -> 3.4.4 (the previous patch before fix 3.4.5), or mark notes='max exclusive' (affected < 3.4.5) |
+| ZBX-13261 | 2.2 | unknown | 2.2.21 | 2.2.21,3.0.14,3.2.11,3.4.5 | max -> 2.2.20 (the previous patch before fix 2.2.21), or mark notes='max exclusive' (affected < 2.2.21) |
+| ZBX-13261 | 3.0 | unknown | 3.0.14 | 2.2.21,3.0.14,3.2.11,3.4.5 | max -> 3.0.13 (the previous patch before fix 3.0.14), or mark notes='max exclusive' (affected < 3.0.14) |
+| ZBX-13261 | 3.2 | unknown | 3.2.11 | 2.2.21,3.0.14,3.2.11,3.4.5 | max -> 3.2.10 (the previous patch before fix 3.2.11), or mark notes='max exclusive' (affected < 3.2.11) |
+| ZBX-13261 | 3.4 | unknown | 3.4.5 | 2.2.21,3.0.14,3.2.11,3.4.5 | max -> 3.4.4 (the previous patch before fix 3.4.5), or mark notes='max exclusive' (affected < 3.4.5) |
+| ZBX-13345 | 3.0 | unknown | 3.0.15 | 3.0.15,3.4.7,4.0.0alpha3 | max -> 3.0.14 (the previous patch before fix 3.0.15), or mark notes='max exclusive' (affected < 3.0.15) |
+| ZBX-13345 | 3.4 | unknown | 3.4.7 | 3.0.15,3.4.7,4.0.0alpha3 | max -> 3.4.6 (the previous patch before fix 3.4.7), or mark notes='max exclusive' (affected < 3.4.7) |
+| ZBX-14336 | 3.0 | unknown | 3.0.17 | 3.0.17,3.4.9,4.0.0alpha6 | max -> 3.0.16 (the previous patch before fix 3.0.17), or mark notes='max exclusive' (affected < 3.0.17) |
+| ZBX-14336 | 3.4 | unknown | 3.4.9 | 3.0.17,3.4.9,4.0.0alpha6 | max -> 3.4.8 (the previous patch before fix 3.4.9), or mark notes='max exclusive' (affected < 3.4.9) |
+| ZBX-14337 | 3.4 | unknown | 3.4.9 | 3.4.9,4.0.0alpha6 | max -> 3.4.8 (the previous patch before fix 3.4.9), or mark notes='max exclusive' (affected < 3.4.9) |
+| ZBX-15708 | 4.0 | unknown | 4.0.7 | 4.0.7,4.2.1,4.4.0alpha1 | max -> 4.0.6 (the previous patch before fix 4.0.7), or mark notes='max exclusive' (affected < 4.0.7) |
+| ZBX-15708 | 4.2 | unknown | 4.2.1 | 4.0.7,4.2.1,4.4.0alpha1 | max -> 4.2.0 (the previous patch before fix 4.2.1), or mark notes='max exclusive' (affected < 4.2.1) |
+| ZBX-15870 | 3.0 | unknown | 3.0.27 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 3.0.26 (the previous patch before fix 3.0.27), or mark notes='max exclusive' (affected < 3.0.27) |
+| ZBX-15870 | 4.0 | unknown | 4.0.7 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.0.6 (the previous patch before fix 4.0.7), or mark notes='max exclusive' (affected < 4.0.7) |
+| ZBX-15870 | 4.2 | unknown | 4.2.1 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.2.0 (the previous patch before fix 4.2.1), or mark notes='max exclusive' (affected < 4.2.1) |
+| ZBX-16019 | 3.0 | unknown | 3.0.27 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 3.0.26 (the previous patch before fix 3.0.27), or mark notes='max exclusive' (affected < 3.0.27) |
+| ZBX-16019 | 4.0 | unknown | 4.0.7 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.0.6 (the previous patch before fix 4.0.7), or mark notes='max exclusive' (affected < 4.0.7) |
+| ZBX-16019 | 4.2 | unknown | 4.2.1 | 3.0.27,4.0.7,4.2.1,4.4.0alpha1 | max -> 4.2.0 (the previous patch before fix 4.2.1), or mark notes='max exclusive' (affected < 4.2.1) |
+| ZBX-16103 | 4.0 | unknown | 4.0.11 | 4.0.11,4.2.5,4.4.0alpha1 | max -> 4.0.10 (the previous patch before fix 4.0.11), or mark notes='max exclusive' (affected < 4.0.11) |
+| ZBX-16103 | 4.2 | unknown | 4.2.5 | 4.0.11,4.2.5,4.4.0alpha1 | max -> 4.2.4 (the previous patch before fix 4.2.5), or mark notes='max exclusive' (affected < 4.2.5) |
+| ZBX-16750 | 3.0 | unknown | 3.0.29 | 3.0.29,4.0.14,4.2.8,4.4.1,5.0.0alpha1 | max -> 3.0.28 (the previous patch before fix 3.0.29), or mark notes='max exclusive' (affected < 3.0.29) |
+| ZBX-16750 | 4.0 | unknown | 4.0.14 | 3.0.29,4.0.14,4.2.8,4.4.1,5.0.0alpha1 | max -> 4.0.13 (the previous patch before fix 4.0.14), or mark notes='max exclusive' (affected < 4.0.14) |
+| ZBX-16750 | 4.2 | unknown | 4.2.8 | 3.0.29,4.0.14,4.2.8,4.4.1,5.0.0alpha1 | max -> 4.2.7 (the previous patch before fix 4.2.8), or mark notes='max exclusive' (affected < 4.2.8) |
+| ZBX-16750 | 4.4 | unknown | 4.4.1 | 3.0.29,4.0.14,4.2.8,4.4.1,5.0.0alpha1 | max -> 4.4.0 (the previous patch before fix 4.4.1), or mark notes='max exclusive' (affected < 4.4.1) |
+| ZBX-17101 | 3.0 | unknown | 3.0.29 | 3.0.29,4.0.16,4.4.4,5.0.0alpha1 | max -> 3.0.28 (the previous patch before fix 3.0.29), or mark notes='max exclusive' (affected < 3.0.29) |
+| ZBX-17101 | 4.0 | unknown | 4.0.16 | 3.0.29,4.0.16,4.4.4,5.0.0alpha1 | max -> 4.0.15 (the previous patch before fix 4.0.16), or mark notes='max exclusive' (affected < 4.0.16) |
+| ZBX-17101 | 4.4 | unknown | 4.4.4 | 3.0.29,4.0.16,4.4.4,5.0.0alpha1 | max -> 4.4.3 (the previous patch before fix 4.4.4), or mark notes='max exclusive' (affected < 4.4.4) |
+| ZBX-17997 | 5.0 | unknown | 5.0.3 | 5.0.3,5.2.0alpha1 | max -> 5.0.2 (the previous patch before fix 5.0.3), or mark notes='max exclusive' (affected < 5.0.3) |
+| ZBX-17997 | 5.2 | unknown | 5.2.0alpha1 | 5.0.3,5.2.0alpha1 | mark notes='max exclusive' (affected < 5.2.0alpha1) |
+| ZBX-18884 | 4.0 | unknown | 4.0.28 | 4.0.28,5.0.8,5.2.4,5.4.0alpha1 | max -> 4.0.27 (the previous patch before fix 4.0.28), or mark notes='max exclusive' (affected < 4.0.28) |
+| ZBX-18884 | 5.0 | unknown | 5.0.8 | 4.0.28,5.0.8,5.2.4,5.4.0alpha1 | max -> 5.0.7 (the previous patch before fix 5.0.8), or mark notes='max exclusive' (affected < 5.0.8) |
+| ZBX-18884 | 5.2 | unknown | 5.2.4 | 4.0.28,5.0.8,5.2.4,5.4.0alpha1 | max -> 5.2.3 (the previous patch before fix 5.2.4), or mark notes='max exclusive' (affected < 5.2.4) |
+| ZBX-19149 | 4.0 | unknown | 4.0.30 | 4.0.30,5.0.10,5.2.6,5.4.0beta1 | max -> 4.0.29 (the previous patch before fix 4.0.30), or mark notes='max exclusive' (affected < 4.0.30) |
+| ZBX-19149 | 5.0 | unknown | 5.0.10 | 4.0.30,5.0.10,5.2.6,5.4.0beta1 | max -> 5.0.9 (the previous patch before fix 5.0.10), or mark notes='max exclusive' (affected < 5.0.10) |
+| ZBX-19149 | 5.2 | unknown | 5.2.6 | 4.0.30,5.0.10,5.2.6,5.4.0beta1 | max -> 5.2.5 (the previous patch before fix 5.2.6), or mark notes='max exclusive' (affected < 5.2.6) |
+| ZBX-19300 | 4.0 | unknown | 4.0.32 | 4.0.32,5.0.13,5.2.7,5.4.1,6.0.0alpha1 | max -> 4.0.31 (the previous patch before fix 4.0.32), or mark notes='max exclusive' (affected < 4.0.32) |
+| ZBX-19300 | 5.0 | unknown | 5.0.13 | 4.0.32,5.0.13,5.2.7,5.4.1,6.0.0alpha1 | max -> 5.0.12 (the previous patch before fix 5.0.13), or mark notes='max exclusive' (affected < 5.0.13) |
+| ZBX-19300 | 5.2 | unknown | 5.2.7 | 4.0.32,5.0.13,5.2.7,5.4.1,6.0.0alpha1 | max -> 5.2.6 (the previous patch before fix 5.2.7), or mark notes='max exclusive' (affected < 5.2.7) |
+| ZBX-19300 | 5.4 | unknown | 5.4.1 | 4.0.32,5.0.13,5.2.7,5.4.1,6.0.0alpha1 | max -> 5.4.0 (the previous patch before fix 5.4.1), or mark notes='max exclusive' (affected < 5.4.1) |
+| ZBX-22718 | 6.0 | unknown | 6.0.17 | 6.0.17,6.4.2,7.0.0alpha1 | max -> 6.0.16 (the previous patch before fix 6.0.17), or mark notes='max exclusive' (affected < 6.0.17) |
+| ZBX-22718 | 6.4 | unknown | 6.4.2 | 6.0.17,6.4.2,7.0.0alpha1 | max -> 6.4.1 (the previous patch before fix 6.4.2), or mark notes='max exclusive' (affected < 6.4.2) |
+| ZBX-22719 | 6.0 | unknown | 6.0.17 | 6.0.17,6.4.2,7.0.0alpha1 | max -> 6.0.16 (the previous patch before fix 6.0.17), or mark notes='max exclusive' (affected < 6.0.17) |
+| ZBX-22719 | 6.4 | unknown | 6.4.2 | 6.0.17,6.4.2,7.0.0alpha1 | max -> 6.4.1 (the previous patch before fix 6.4.2), or mark notes='max exclusive' (affected < 6.4.2) |
+| ZBX-22727 | 6.0 | unknown | 6.0.18 | 6.0.18,6.4.2,7.0.0alpha1 | max -> 6.0.17 (the previous patch before fix 6.0.18), or mark notes='max exclusive' (affected < 6.0.18) |
+| ZBX-22727 | 6.4 | unknown | 6.4.2 | 6.0.18,6.4.2,7.0.0alpha1 | max -> 6.4.1 (the previous patch before fix 6.4.2), or mark notes='max exclusive' (affected < 6.4.2) |
 
-Примечание: для веток 2.4/3.2/4.2/5.2 max = последний реальный патч ветки (2.4.8, 3.2.11, 4.2.8, 5.2.7) — ложный хит на финальном релизе ветки.
+Note: for branches 2.4/3.2/4.2/5.2 max = the branch’s last real patch (2.4.8, 3.2.11, 4.2.8, 5.2.7) — a false hit on the branch’s final release.
 
 ---
 
-## 3. Диапазоны шире реальных патчей / несуществующие версии (phantom-version)
+## 3. Ranges wider than real patches / non-existent versions (phantom-version)
 
-### 3a. Конкретные записи
+### 3a. Specific records
 
-| id | branch | min | max | fixed_versions | проблема | рекомендация |
+| id | branch | min | max | fixed_versions | problem | recommendation |
 |---|---|---|---|---|---|---|
-| CVE-2022-35229 | 4.0 | unknown | '4.0.0' | 4.0.43rc1,5.0.25rc1,6.0.5rc1,6.2.0rc1 | branch 4.0: min=unknown, max='4.0.0' (c пометкой max эксклюзивный); fixed_versions=['4.0.43rc1','5.0.25rc1','6.0.5rc1','6.2.0rc1']. '4.0.0' не является патчем и | max -> 4.0.42 (последняя уязвимая), либо max=4.0.43rc1 с пометкой 'max эксклюзивный' |
-| CVE-2016-10742 | 3.1 | 3.1.0 | unknown | 2.2.21rc1,3.0.13rc1,3.2.10rc1,3.4.4rc1 | branch 3.1: min=3.1.0, max=unknown; branch 3.3: min=3.3.0, max=unknown; fixed_versions=['2.2.21rc1','3.0.13rc1','3.2.10rc1','3.4.4rc1']. Ветки 3.1/3.3 отсутству | ограничить (3.1/3.3 нерелизные: max=3.1.0/3.3.0 или пометить ветку как не-релизную/без данных) |
-| CVE-2020-11800 | 2.2 | 2.2.0 | unknown | 3.0.31rc1 | branch 2.2: min=2.2.0, max=unknown; fixed_versions=['3.0.31rc1']. max=unknown → unbounded: ветка 2.2 матчится вся (включая исправленные 2.2.21+) | max -> 2.2.20 (последний патч до фикса; фикс указан только для 3.0 — проверить официальный скоуп) |
-| CVE-2020-15803 | 4.4 | '4.4' | 4.4.9 | 3.0.32rc1,4.0.22rc1,5.0.2rc1,5.2.0alpha1 | branch 4.4: min='4.4', max=4.4.9; fixed_versions=['3.0.32rc1','4.0.22rc1','5.0.2rc1','5.2.0alpha1']. min='4.4' — не версия патча (branch-маркер); в patches['4.4 | min -> 4.4.0; проверить по официальному адвайзери, уязвима ли 4.4 (если нет — удалить диапазон 4.4) |
-| ZBX-16792 | 5.0 | unknown | '5.0' |  | branch 5.0: min=unknown, max='5.0'; fixed_versions=[]. max='5.0' — branch-маркер вместо версии патча (в patches['5.0'] нет '5.0') | проставить конкретную версию (напр. 5.0.0..5.0.2, по тексту адвайзери) или пометить как 'вся ветка' |
-| ZBX-20383 | - | - | - | 4.0.37,5.0.19,5.4.9,6.0.0beta2 | branch 2.0: max='2.X', branch 3.0: max='3.X' — плейсхолдеры из официального адвайзери ZBX-20383 ('2.0-2.X', '3.0-3.X'); fixed_versions=['4.0.37','5.0.19','5.4.9 | раскрыть '2.X' в ветки 2.0/2.2/2.4 и '3.X' в 3.0/3.2/3.4, либо научить матчер обрабатывать 'X' как wildcard |
-| CVE-2019-15132 | - | - | - | 4.2 | fixed_versions=['4.2'] — branch-маркер, не версия; affected-ветки 4.2 в записи нет (affected: 4.0<=4.0.26, 4.4.0alpha1, 5.0<=5.0.5, 5.2<=5.2.1 — соответствует N | уточнить fix-версию до конкретной (4.2.7rc1?) — сейчас '4.2' непроверяема матчером |
-| CVE-2010-2790 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.3rc1 | branch 1.3: min='1.3.1beta', max='1.3beta' и branch 1.5: min='1.5.1beta', max='1.5beta' — ИНВЕРТИРОВАННЫЕ диапазоны (min > max по числовой нотации); версии не с | исправить порядок (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) или удалить нерелизные ветки — проверить реальную нотацию версий Zabbix 1.3/1.5 (2009-2012) |
-| CVE-2010-5049 | 1.3 | '1.3.1beta' | '1.3beta' | unknown | branch 1.3: min='1.3.1beta', max='1.3beta' и branch 1.5: min='1.5.1beta', max='1.5beta' — ИНВЕРТИРОВАННЫЕ диапазоны (min > max по числовой нотации); версии не с | исправить порядок (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) или удалить нерелизные ветки — проверить реальную нотацию версий Zabbix 1.3/1.5 (2009-2012) |
-| CVE-2011-2904 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.6 | branch 1.3: min='1.3.1beta', max='1.3beta' и branch 1.5: min='1.5.1beta', max='1.5beta' — ИНВЕРТИРОВАННЫЕ диапазоны (min > max по числовой нотации); версии не с | исправить порядок (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) или удалить нерелизные ветки — проверить реальную нотацию версий Zabbix 1.3/1.5 (2009-2012) |
-| CVE-2011-3263 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.6,1.9.4 (alpha) | branch 1.3: min='1.3.1beta', max='1.3beta' и branch 1.5: min='1.5.1beta', max='1.5beta' — ИНВЕРТИРОВАННЫЕ диапазоны (min > max по числовой нотации); версии не с | исправить порядок (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) или удалить нерелизные ветки — проверить реальную нотацию версий Zabbix 1.3/1.5 (2009-2012) |
-| CVE-2011-3264 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.6 | branch 1.3: min='1.3.1beta', max='1.3beta' и branch 1.5: min='1.5.1beta', max='1.5beta' — ИНВЕРТИРОВАННЫЕ диапазоны (min > max по числовой нотации); версии не с | исправить порядок (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) или удалить нерелизные ветки — проверить реальную нотацию версий Zabbix 1.3/1.5 (2009-2012) |
-| CVE-2011-3265 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.6 | branch 1.3: min='1.3.1beta', max='1.3beta' и branch 1.5: min='1.5.1beta', max='1.5beta' — ИНВЕРТИРОВАННЫЕ диапазоны (min > max по числовой нотации); версии не с | исправить порядок (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) или удалить нерелизные ветки — проверить реальную нотацию версий Zabbix 1.3/1.5 (2009-2012) |
-| CVE-2011-4615 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.10,1.9.9 (beta) | branch 1.3: min='1.3.1beta', max='1.3beta' и branch 1.5: min='1.5.1beta', max='1.5beta' — ИНВЕРТИРОВАННЫЕ диапазоны (min > max по числовой нотации); версии не с | исправить порядок (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) или удалить нерелизные ветки — проверить реальную нотацию версий Zabbix 1.3/1.5 (2009-2012) |
-| CVE-2011-5027 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.10,1.9.9 (beta) | branch 1.3: min='1.3.1beta', max='1.3beta' и branch 1.5: min='1.5.1beta', max='1.5beta' — ИНВЕРТИРОВАННЫЕ диапазоны (min > max по числовой нотации); версии не с | исправить порядок (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) или удалить нерелизные ветки — проверить реальную нотацию версий Zabbix 1.3/1.5 (2009-2012) |
-| CVE-2012-3435 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.15rc1,2.0.2rc1,2.1.0 | branch 1.3: min='1.3.1beta', max='1.3beta' и branch 1.5: min='1.5.1beta', max='1.5beta' — ИНВЕРТИРОВАННЫЕ диапазоны (min > max по числовой нотации); версии не с | исправить порядок (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) или удалить нерелизные ветки — проверить реальную нотацию версий Zabbix 1.3/1.5 (2009-2012) |
+| CVE-2022-35229 | 4.0 | unknown | '4.0.0' | 4.0.43rc1,5.0.25rc1,6.0.5rc1,6.2.0rc1 | branch 4.0: min=unknown, max='4.0.0' (with the max exclusive marker); fixed_versions=['4.0.43rc1','5.0.25rc1','6.0.5rc1','6.2.0rc1']. '4.0.0' is not a patch and | max -> 4.0.42 (last vulnerable), or max=4.0.43rc1 with the 'max exclusive' marker |
+| CVE-2016-10742 | 3.1 | 3.1.0 | unknown | 2.2.21rc1,3.0.13rc1,3.2.10rc1,3.4.4rc1 | branch 3.1: min=3.1.0, max=unknown; branch 3.3: min=3.3.0, max=unknown; fixed_versions=['2.2.21rc1','3.0.13rc1','3.2.10rc1','3.4.4rc1']. Branches 3.1/3.3 are miss | bound them (3.1/3.3 are unreleased: max=3.1.0/3.3.0 or mark the branch as non-release/no data) |
+| CVE-2020-11800 | 2.2 | 2.2.0 | unknown | 3.0.31rc1 | branch 2.2: min=2.2.0, max=unknown; fixed_versions=['3.0.31rc1']. max=unknown → unbounded: the whole branch 2.2 matches (including fixed 2.2.21+) | max -> 2.2.20 (the last patch before the fix; the fix is only specified for 3.0 — verify the official scope) |
+| CVE-2020-15803 | 4.4 | '4.4' | 4.4.9 | 3.0.32rc1,4.0.22rc1,5.0.2rc1,5.2.0alpha1 | branch 4.4: min='4.4', max=4.4.9; fixed_versions=['3.0.32rc1','4.0.22rc1','5.0.2rc1','5.2.0alpha1']. min='4.4' is not a patch version (a branch marker); patches['4.4 | min -> 4.4.0; check the official advisory on whether 4.4 is vulnerable (if not — remove the 4.4 range) |
+| ZBX-16792 | 5.0 | unknown | '5.0' |  | branch 5.0: min=unknown, max='5.0'; fixed_versions=[]. max='5.0' is a branch marker instead of a patch version (patches['5.0'] does not contain '5.0') | set a concrete version (e.g. 5.0.0..5.0.2, per the advisory text) or mark as 'whole branch' |
+| ZBX-20383 | - | - | - | 4.0.37,5.0.19,5.4.9,6.0.0beta2 | branch 2.0: max='2.X', branch 3.0: max='3.X' — placeholders from the official advisory ZBX-20383 ('2.0-2.X', '3.0-3.X'); fixed_versions=['4.0.37','5.0.19','5.4.9 | expand '2.X' into branches 2.0/2.2/2.4 and '3.X' into 3.0/3.2/3.4, or teach the matcher to treat 'X' as a wildcard |
+| CVE-2019-15132 | - | - | - | 4.2 | fixed_versions=['4.2'] is a branch marker, not a version; the record has no affected branch 4.2 (affected: 4.0<=4.0.26, 4.4.0alpha1, 5.0<=5.0.5, 5.2<=5.2.1 — matches N | pin the fix version down to a concrete one (4.2.7rc1?) — currently '4.2' is unverifiable by the matcher |
+| CVE-2010-2790 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.3rc1 | branch 1.3: min='1.3.1beta', max='1.3beta' and branch 1.5: min='1.5.1beta', max='1.5beta' — INVERTED ranges (min > max in numeric notation); versions do not e | fix the order (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) or remove the unreleased branches — verify the actual Zabbix 1.3/1.5 version notation (2009-2012) |
+| CVE-2010-5049 | 1.3 | '1.3.1beta' | '1.3beta' | unknown | branch 1.3: min='1.3.1beta', max='1.3beta' and branch 1.5: min='1.5.1beta', max='1.5beta' — INVERTED ranges (min > max in numeric notation); versions do not e | fix the order (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) or remove the unreleased branches — verify the actual Zabbix 1.3/1.5 version notation (2009-2012) |
+| CVE-2011-2904 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.6 | branch 1.3: min='1.3.1beta', max='1.3beta' and branch 1.5: min='1.5.1beta', max='1.5beta' — INVERTED ranges (min > max in numeric notation); versions do not e | fix the order (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) or remove the unreleased branches — verify the actual Zabbix 1.3/1.5 version notation (2009-2012) |
+| CVE-2011-3263 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.6,1.9.4 (alpha) | branch 1.3: min='1.3.1beta', max='1.3beta' and branch 1.5: min='1.5.1beta', max='1.5beta' — INVERTED ranges (min > max in numeric notation); versions do not e | fix the order (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) or remove the unreleased branches — verify the actual Zabbix 1.3/1.5 version notation (2009-2012) |
+| CVE-2011-3264 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.6 | branch 1.3: min='1.3.1beta', max='1.3beta' and branch 1.5: min='1.5.1beta', max='1.5beta' — INVERTED ranges (min > max in numeric notation); versions do not e | fix the order (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) or remove the unreleased branches — verify the actual Zabbix 1.3/1.5 version notation (2009-2012) |
+| CVE-2011-3265 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.6 | branch 1.3: min='1.3.1beta', max='1.3beta' and branch 1.5: min='1.5.1beta', max='1.5beta' — INVERTED ranges (min > max in numeric notation); versions do not e | fix the order (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) or remove the unreleased branches — verify the actual Zabbix 1.3/1.5 version notation (2009-2012) |
+| CVE-2011-4615 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.10,1.9.9 (beta) | branch 1.3: min='1.3.1beta', max='1.3beta' and branch 1.5: min='1.5.1beta', max='1.5beta' — INVERTED ranges (min > max in numeric notation); versions do not e | fix the order (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) or remove the unreleased branches — verify the actual Zabbix 1.3/1.5 version notation (2009-2012) |
+| CVE-2011-5027 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.10,1.9.9 (beta) | branch 1.3: min='1.3.1beta', max='1.3beta' and branch 1.5: min='1.5.1beta', max='1.5beta' — INVERTED ranges (min > max in numeric notation); versions do not e | fix the order (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) or remove the unreleased branches — verify the actual Zabbix 1.3/1.5 version notation (2009-2012) |
+| CVE-2012-3435 | 1.3 | '1.3.1beta' | '1.3beta' | 1.8.15rc1,2.0.2rc1,2.1.0 | branch 1.3: min='1.3.1beta', max='1.3beta' and branch 1.5: min='1.5.1beta', max='1.5beta' — INVERTED ranges (min > max in numeric notation); versions do not e | fix the order (min=1.3.0/1.5.0, max=1.3.1beta/1.5.1beta) or remove the unreleased branches — verify the actual Zabbix 1.3/1.5 version notation (2009-2012) |
 
-### 3b. Системное: ветки без таблиц патчей в versions.json
+### 3b. Systemic: branches without patch tables in versions.json
 
-Следующие ветки **отсутствуют** в versions.json (patches = пусто), но используются в affected: `1.1, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.3, 3.1, 3.3` → все диапазоны на них (записи 2007–2014 и CVE-2016-10742) непроверяемы. Инвертированные диапазоны (min > max) в ветках 1.3/1.5: CVE-2010-2790, CVE-2010-5049, CVE-2011-2904, CVE-2011-3263, CVE-2011-3264, CVE-2011-3265, CVE-2011-4615, CVE-2011-5027, CVE-2012-3435.
+The following branches are **absent** from versions.json (patches = empty), but are used in affected: `1.1, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.3, 3.1, 3.3` → all ranges on them (2007–2014 records and CVE-2016-10742) are unverifiable. Inverted ranges (min > max) in branches 1.3/1.5: CVE-2010-2790, CVE-2010-5049, CVE-2011-2904, CVE-2011-3263, CVE-2011-3264, CVE-2011-3265, CVE-2011-4615, CVE-2011-5027, CVE-2012-3435.
 
 ---
 
-## 4. Пустые affected_versions для CVE
+## 4. Empty affected_versions for CVE
 
-kind=cve с полностью пустым affected_versions — **0** записей. Есть 1 запись, где все диапазоны = unknown/unknown:
+kind=cve with fully empty affected_versions — **0** records. There is 1 record where all ranges = unknown/unknown:
 
-| id | branch | min | max | суть | рекомендация |
+| id | branch | min | max | essence | recommendation |
 |---|---|---|---|---|---|
-| CVE-2021-46088 | 4.0/4.2/4.4/5.0 | unknown | unknown | RCE: роль 'Zabbix Admin' может выполнять shell-скрипты | Заполнить по NVD: 4.0 ≤4.0.34; 4.2 ≤4.2.8; 4.4 ≤4.4.11 (внимание: 4.4.11 нет в versions.json, последний реальный патч 4.4.10); 5.0 ≤5.0.20 |
+| CVE-2021-46088 | 4.0/4.2/4.4/5.0 | unknown | unknown | RCE: the 'Zabbix Admin' role can execute shell scripts | Fill in from NVD: 4.0 ≤4.0.34; 4.2 ≤4.2.8; 4.4 ≤4.4.11 (note: 4.4.11 is missing from versions.json, the last real patch is 4.4.10); 5.0 ≤5.0.20 |
 
 ---
 
-## 5. Пропущенные/лишние ветки vs официальные адвайзери (15 целевых CVE)
+## 5. Missing/extra branches vs official advisories (15 target CVEs)
 
-Сверено с: NVD API, support.zabbix.com (Jira), release notes zabbix.com/rn. **Совпали (12 из 15):** CVE-2016-10134 (2.2/3.0), CVE-2017-2824/-25/-26 (2.0/2.2/2.4/3.0/3.2 по ZBX-12075; 2.4 min/max=unknown — см. ниже), CVE-2022-23134 (5.4/6.0 по NVD/ZBX-20384), CVE-2023-32725 (6.0/6.4/7.0), CVE-2024-22116 (6.4.9–6.4.15 + 7.0 dev), CVE-2024-22120 (6.0/6.4/7.0, эксклюзив), CVE-2024-42327 (6.0/6.4/7.0), CVE-2025-27232 (только 7.4!), CVE-2025-27233 (6.0/7.0/7.2, прецизионно по ZBX-26987), CVE-2025-27234 (только 5.0, по ZBX-26985), CVE-2025-27240 (6.0/6.4/7.0), CVE-2019-17382 (4.4.0, fix 4.4.1).
+Cross-checked against: NVD API, support.zabbix.com (Jira), release notes zabbix.com/rn. **Matched (12 of 15):** CVE-2016-10134 (2.2/3.0), CVE-2017-2824/-25/-26 (2.0/2.2/2.4/3.0/3.2 per ZBX-12075; 2.4 min/max=unknown — see below), CVE-2022-23134 (5.4/6.0 per NVD/ZBX-20384), CVE-2023-32725 (6.0/6.4/7.0), CVE-2024-22116 (6.4.9–6.4.15 + 7.0 dev), CVE-2024-22120 (6.0/6.4/7.0, exclusive), CVE-2024-42327 (6.0/6.4/7.0), CVE-2025-27232 (7.4 only!), CVE-2025-27233 (6.0/7.0/7.2, precise per ZBX-26987), CVE-2025-27234 (5.0 only, per ZBX-26985), CVE-2025-27240 (6.0/6.4/7.0), CVE-2019-17382 (4.4.0, fix 4.4.1).
 
-**Расхождения:**
+**Discrepancies:**
 
-| CVE | DB affected | Официально | Проблема |
+| CVE | DB affected | Official | Problem |
 |---|---|---|---|
-| **CVE-2022-23131** | 4.0≤4.0.36, 5.0≤5.0.18, 5.4≤5.4.8, 6.0alpha1–beta1; fx 4.0.37/5.0.19/5.4.9/6.0.0beta2 | ZBX-20350: Affects 5.4.7, Fix 5.4.9rc2/6.0.0beta1; NVD: 5.4.0–5.4.8 + 6.0.0alpha1; rn4.0.37/rn5.0.19 НЕ содержат ZBX-20350 | **Лишние ветки 4.0/5.0** (данные смешаны с ZBX-20383 Java Gateway) → ложные хиты |
-| **CVE-2023-29449** | 5.0/6.0/6.4 (6.4: max 6.4.4) | фикс 6.2.8rc1; rn6.2.8: ZBX-22589 | **нет 6.2**; 6.4 max ≥ fix 6.4.0rc1 (ложные хиты) |
-| **CVE-2023-29450** | 5.0/6.0/6.4 (6.4: max 6.4.4) | фикс 6.2.9rc2; NVD исключает 6.4.2 | **нет 6.2**; 6.4 max ≥ fix 6.4.2rc1 |
-| **CVE-2023-29451** | 6.0/6.4 (6.4: max 6.4.4) | ZBX-22587: Affects 6.0.14/6.2.8/6.4.0; фикс 6.2.9rc2 | **нет 6.2**; 6.4 max ≥ fix 6.4.1rc1 |
-| **CVE-2025-49642** (доп.) | 6.0/7.0 | фикс 7.2.6 существует | [INFERENCE] вероятно нет ветки 7.2 |
+| **CVE-2022-23131** | 4.0≤4.0.36, 5.0≤5.0.18, 5.4≤5.4.8, 6.0alpha1–beta1; fx 4.0.37/5.0.19/5.4.9/6.0.0beta2 | ZBX-20350: Affects 5.4.7, Fix 5.4.9rc2/6.0.0beta1; NVD: 5.4.0–5.4.8 + 6.0.0alpha1; rn4.0.37/rn5.0.19 DO NOT contain ZBX-20350 | **Extra branches 4.0/5.0** (data mixed with ZBX-20383 Java Gateway) → false hits |
+| **CVE-2023-29449** | 5.0/6.0/6.4 (6.4: max 6.4.4) | fix 6.2.8rc1; rn6.2.8: ZBX-22589 | **no 6.2**; 6.4 max ≥ fix 6.4.0rc1 (false hits) |
+| **CVE-2023-29450** | 5.0/6.0/6.4 (6.4: max 6.4.4) | fix 6.2.9rc2; NVD excludes 6.4.2 | **no 6.2**; 6.4 max ≥ fix 6.4.2rc1 |
+| **CVE-2023-29451** | 6.0/6.4 (6.4: max 6.4.4) | ZBX-22587: Affects 6.0.14/6.2.8/6.4.0; fix 6.2.9rc2 | **no 6.2**; 6.4 max ≥ fix 6.4.1rc1 |
+| **CVE-2025-49642** (extra) | 6.0/7.0 | fix 7.2.6 exists | [INFERENCE] branch 7.2 probably missing |
 
-Дополнительно: CVE-2017-2824/-25/-26 ветка 2.4 (min=max=unknown): зафиксировать max=2.4.8 (последний реальный патч; NVD местами упоминает несуществующий 2.4.9rc1).
+Additionally: CVE-2017-2824/-25/-26 branch 2.4 (min=max=unknown): pin max=2.4.8 (the last real patch; NVD in places mentions a non-existent 2.4.9rc1).
 
 ---
 
-## 6. GHSA-зомби (advisory, пустые affected_versions)
+## 6. GHSA zombies (advisory, empty affected_versions)
 
-12 GHSA-записей с пустыми affected_versions (summary — Unreviewed-импорт CVE; **ни одна** из этих CVE-записей не существует в db/vulns.json) + осознанная заглушка ZBX-20349:
+12 GHSA records with empty affected_versions (summary — an Unreviewed CVE import; **none** of these CVE records exists in db/vulns.json) + the deliberate ZBX-20349 placeholder:
 
-| id | импортированный CVE | CVE в БД | рекомендация |
+| id | imported CVE | CVE in DB | recommendation |
 |---|---|---|---|
-| GHSA-2h5x-h7x4-hm9h | CVE-2026-23920 | нет | импортировать CVE-2026-23920 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-4mp5-p9jh-3rv5 | CVE-2026-23923 | нет | импортировать CVE-2026-23923 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-88jj-c4p9-959j | CVE-2026-23930 | нет | импортировать CVE-2026-23930 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-9gr5-72qc-m8xc | CVE-2026-23931 | нет | импортировать CVE-2026-23931 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-c945-v35p-v696 | CVE-2025-27231 | нет | импортировать CVE-2025-27231 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-j6gv-xg9q-8h4p | CVE-2026-23934 | нет | импортировать CVE-2026-23934 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-pr2j-9fvv-cqvq | CVE-2026-59785 | нет | импортировать CVE-2026-59785 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-q964-q8gh-7pcw | CVE-2026-59788 | нет | импортировать CVE-2026-59788 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-r8x9-p5v6-vx46 | CVE-2026-23927 | нет | импортировать CVE-2026-23927 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-v7c2-5wfc-rfff | CVE-2026-23926 | нет | импортировать CVE-2026-23926 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-wx93-p8qg-2gp4 | CVE-2026-23922 | нет | импортировать CVE-2026-23922 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| GHSA-x27p-fpr7-4wpm | CVE-2026-23929 | нет | импортировать CVE-2026-23929 с диапазонами из официального адвайзери (ZBV-2026-08-18-* и др.), либо явно пометить запись unreviewed/excluded и исключить из матчинга |
-| ZBX-20349 | — | — | пометить явно (notes: не применимо/excluded) и исключить из матчинга, чтобы не создавала шум |
+| GHSA-2h5x-h7x4-hm9h | CVE-2026-23920 | no | import CVE-2026-23920 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-4mp5-p9jh-3rv5 | CVE-2026-23923 | no | import CVE-2026-23923 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-88jj-c4p9-959j | CVE-2026-23930 | no | import CVE-2026-23930 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-9gr5-72qc-m8xc | CVE-2026-23931 | no | import CVE-2026-23931 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-c945-v35p-v696 | CVE-2025-27231 | no | import CVE-2025-27231 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-j6gv-xg9q-8h4p | CVE-2026-23934 | no | import CVE-2026-23934 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-pr2j-9fvv-cqvq | CVE-2026-59785 | no | import CVE-2026-59785 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-q964-q8gh-7pcw | CVE-2026-59788 | no | import CVE-2026-59788 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-r8x9-p5v6-vx46 | CVE-2026-23927 | no | import CVE-2026-23927 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-v7c2-5wfc-rfff | CVE-2026-23926 | no | import CVE-2026-23926 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-wx93-p8qg-2gp4 | CVE-2026-23922 | no | import CVE-2026-23922 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| GHSA-x27p-fpr7-4wpm | CVE-2026-23929 | no | import CVE-2026-23929 with ranges from the official advisory (ZBV-2026-08-18-* etc.), or explicitly mark the record unreviewed/excluded and exclude it from matching |
+| ZBX-20349 | — | — | mark it explicitly (notes: not applicable/excluded) and exclude it from matching so that it creates no noise |
 
 ---
 
-## Методика
+## Methodology
 
-- kind=cve/advisory: 184 записи (в контракте указано «172»; фактически 132 CVE + 52 advisory = 184).
-- Check 2: сравнение через числовой ключ (3 сегмента); alpha/beta/rc-последовательности (alpha < beta < rc < final) учитывались: в fixed-overlap вошли только max ≥ fix либо max == fix-rc; pre-release-пары (alpha3 < alpha4 и т.п.) исключены как корректные.
-- Заведомо корректные (НЕ дефект): CVE-2022-23132 (ветка 4.0.36 подтверждена ZBX-20341 Affects; фикса для 4.0 нет — так и в официальном), CVE-2022-23134, ZBX-20383 '2.X'/'3.X' (дословная официальная нотация ZBX-20383).
-- Источники: services.nvd.nist.gov/rest/json/cves/2.0, support.zabbix.com/browse/ZBX-20341, ZBX-20350, ZBX-20383, ZBX-20384, ZBX-12075, ZBX-22587-22589, ZBX-26985, ZBX-26987; zabbix.com/rn/rn4.0.37, rn5.0.19, rn6.2.8, rn6.2.9; zabbix_security_advisories.rss.
+- kind=cve/advisory: 184 records (the contract states '172'; actually 132 CVE + 52 advisory = 184).
+- Check 2: comparison via a numeric key (3 segments); alpha/beta/rc sequences (alpha < beta < rc < final) were taken into account: fixed-overlap includes only max ≥ fix or max == fix-rc; pre-release pairs (alpha3 < alpha4 etc.) were excluded as correct.
+- Known-correct (NOT defects): CVE-2022-23132 (branch 4.0.36 confirmed by the ZBX-20341 Affects list; no fix for 4.0 — same as official), CVE-2022-23134, ZBX-20383 '2.X'/'3.X' (the verbatim official notation of ZBX-20383).
+- Sources: services.nvd.nist.gov/rest/json/cves/2.0, support.zabbix.com/browse/ZBX-20341, ZBX-20350, ZBX-20383, ZBX-20384, ZBX-12075, ZBX-22587-22589, ZBX-26985, ZBX-26987; zabbix.com/rn/rn4.0.37, rn5.0.19, rn6.2.8, rn6.2.9; zabbix_security_advisories.rss.

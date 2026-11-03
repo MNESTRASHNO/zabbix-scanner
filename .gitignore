@@ -14,12 +14,16 @@ cvelist/
 cdx.json
 # scratch files from the research phase
 research/tmp/
+research/
 # ad-hoc Dockerfiles for versions not on Docker Hub
 research/old_versions_lab/
-
+test/
+tests/
 # --- Generated scan artifacts ---
 # passive scan logs / matrix output
 results/
 
 # --- Lab state ---
 *.logresults/
+
+.pytest_cache/

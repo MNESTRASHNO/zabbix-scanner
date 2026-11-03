@@ -58,9 +58,14 @@ def images_for(ver: str) -> tuple[str, str, str]:
     vtags = VERSIONS.get("docker", {}).get(ver) or []
     def pick(prefix: str) -> str:
         candidates = [f"zabbix/{prefix}:{ver}-alpine", f"zabbix/{prefix}:alpine-{ver}"]
-        for want in candidates:
-            if any(t == want for t in vtags):
-                return want
+        if vtags:
+            for want in candidates:
+                if any(t == want for t in vtags):
+                    return want
+        else:
+            # version not in the (stale) versions.json matrix — try the canonical
+            # tag directly; caller is expected to have pulled it beforehand.
+            return candidates[0]
         raise SystemExit(f"no docker tag for {ver}: tried {candidates}; available: {vtags[:4]}")
     server = pick(f"zabbix-server-{FLAVOR}")
     web = pick(f"zabbix-web-{WEB_TYPE}-{FLAVOR}")
@@ -81,7 +86,7 @@ def envs(ver: str, server_name: str, db_name: str) -> tuple[list[str], list[str]
     server_env = [
         f"DB_SERVER_HOST={db_name}", "DB_SERVER_PORT=5432",
         "POSTGRES_USER=zabbix", "POSTGRES_PASSWORD=zabbix", "POSTGRES_DB=zabbix",
-        "ZBX_STARTPOLLERS=2", "ZBX_STARTPOLLERSUNREACHABLE=1", "ZBX_STARTPINGERS=0",
+        "ZBX_STARTPOLLERS=2", "ZBX_STARTPOLLERSUNREACHABLE=1", "ZBX_STARTPINGERS=1",
         "ZBX_STARTTRAPPERS=1", "ZBX_STARTPROXYPOLLERS=0",
     ]
     web_env = [
@@ -112,6 +117,7 @@ def up(ver: str) -> tuple[str, int]:
          *[f"-e{e}" for e in server_env],
          "-p", f"127.0.0.1::10051", server_img)
     web_port = free_port()
+    dcmd("pull", web_img, check=False)  # ensure image exists BEFORE ExposedPorts inspect
     insp = dcmd("image", "inspect", web_img, "--format", "{{json .Config.ExposedPorts}}", check=False)
     internal_web = "8080" if '"8080/tcp"' in insp.stdout else "80"
     dcmd("run", "-d", "--name", names["web"], "--network", NET,
@@ -178,7 +184,19 @@ def main():
     if not args.patch:
         ap.error("--patch required")
     if args.scan_only:
-        _, port = scan_target_port()
+        import subprocess as _sp
+        cname = container_names(args.patch)["web"]
+        insp = _sp.run(["docker", "inspect", cname, "--format", "{{json .NetworkSettings.Ports}}"],
+                       capture_output=True, text=True)
+        try:
+            ports = json.loads(insp.stdout or "{}")
+            m = ports.get("8080/tcp") or ports.get("80/tcp") or []
+            port = int(m[0]["HostPort"]) if m else 0
+        except (ValueError, KeyError, IndexError):
+            port = 0
+        if not port:
+            print(f"[testlab] no running web container {cname}", file=sys.stderr)
+            return 1
     else:
         _, port = up(args.patch)
         if not wait_ready(port, container_names(args.patch)["web"]):

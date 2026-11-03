@@ -24,7 +24,7 @@ dependencies = ["requests>=2.31"]
 zbxscan = "zbxscan.cli:main"
 
 [project.urls]
-"Source" = "https://github.com/<you>/zabbix-vulnscan"
+"Source" = "https://github.com/MNESTRASHNO/zabbix-scanner"
 
 [tool.setuptools.packages.find]
 include = ["zbxscan*"]

@@ -7,20 +7,20 @@
       "cvss": "9.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "В SAPI CGI (php-cgi) query string без символа «=» трактуется как аргументы командной строки PHP. Атакующий передаёт опции вида -d auto_prepend_file=… и добивается выполнения произвольного PHP-кода. Эксплуатируется только когда PHP запущен как CGI под mod_cgi; mod_php и php-fpm не затронуты.",
+    "summary": "In SAPI CGI (php-cgi), a query string without the '=' character is treated as PHP command-line arguments. The attacker passes options such as -d auto_prepend_file=… and achieves arbitrary PHP code execution. Exploitable only when PHP runs as CGI under mod_cgi; mod_php and php-fpm are not affected.",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "5.4/5.5/5.6",
-        "notes": "Официальные образы используют mod_php (Apache) или php-fpm (nginx/alpine), режим php-cgi не задействован — НЕ применимо к стандартным образам; актуально только для кастомных сборок с PHP-CGI."
+        "notes": "Official images use mod_php (Apache) or php-fpm (nginx/alpine); the php-cgi mode is not used — NOT applicable to standard images; relevant only for custom builds with PHP-CGI."
       },
       {
         "branch": "4.0",
         "php": "5.4 (centos7)",
-        "notes": "То же: mod_php в образе, CGI-режим не используется."
+        "notes": "Same: mod_php in the image, CGI mode is not used."
       }
     ],
-    "impact": "Удалённое выполнение произвольного PHP-кода без аутентификации на серверах с PHP-CGI; массово эксплуатировался в 2012 (KEV).",
+    "impact": "Remote execution of arbitrary PHP code without authentication on PHP-CGI servers; massively exploited in 2012 (KEV).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2012-1823",
       "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
@@ -28,26 +28,26 @@
     "public_poc": {
       "exists": true,
       "url": "https://www.rapid7.com/db/modules/exploit/multi/http/php_cgi_arg_injection/",
-      "notes": "Metasploit-модуль php_cgi_arg_injection; также exploit-db 18834. KEV (CISA)."
+      "notes": "Metasploit module php_cgi_arg_injection; also exploit-db 18834. KEV (CISA)."
     }
   },
   {
     "id": "CVE-2014-0160",
     "component": "openssl",
-    "component_version_range": "OpenSSL 1.0.1–1.0.1f (и 1.0.2-beta); вне окна 2016–2026, но см. notes",
+    "component_version_range": "OpenSSL 1.0.1–1.0.1f (and 1.0.2-beta); outside the 2016–2026 window, but see notes",
     "severity": {
       "cvss": "7.5",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
     },
-    "summary": "Heartbleed: отсутствие проверки длины в heartbeat-расширении TLS позволяет удалённо читать до 64 КБ памяти процесса (приватные ключи, сессии, пароли). Вне основного окна (2014), но образы Zabbix 3.0 2016 года могли нести OpenSSL 1.0.1e/f — помечено как исторический чек.",
+    "summary": "Heartbleed: missing length validation in the TLS heartbeat extension allows remote reading of up to 64 KB of process memory (private keys, sessions, passwords). Outside the main window (2014), but Zabbix 3.0 images from 2016 could carry OpenSSL 1.0.1e/f — flagged as a historical check.",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "OpenSSL 1.0.1e/f (centos7/trusty)",
-        "notes": "Номинально затронуто в 2016, если сервер не обновлялся с апреля 2014; все дистрибутивы выпустили патчи. Практически: проверить фактическую версию libssl на цели."
+        "notes": "Nominally affected in 2016 if the server had not been updated since April 2014; all distributions released patches. In practice: verify the actual libssl version on the target."
       }
     ],
-    "impact": "Утечка до 64 КБ памяти процесса TLS-сервера за запрос (приватные ключи, учётные данные). KEV.",
+    "impact": "Leak of up to 64 KB of TLS server process memory per request (private keys, credentials). KEV.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2014-0160",
       "https://www.openssl.org/news/vulnerabilities.html",
@@ -56,31 +56,31 @@
     "public_poc": {
       "exists": true,
       "url": "https://www.rapid7.com/db/modules/auxiliary/scanner/ssl/openssl_heartbleed/",
-      "notes": "Metasploit openssl_heartbleed и десятки PoC."
+      "notes": "Metasploit openssl_heartbleed and dozens of PoCs."
     }
   },
   {
     "id": "CVE-2015-0273",
     "component": "php",
-    "component_version_range": "5.4.x до 5.4.38; 5.5.x до 5.5.22; 5.6.x до 5.6.6",
+    "component_version_range": "5.4.x before 5.4.38; 5.5.x before 5.5.22; 5.6.x before 5.6.6",
     "severity": {
       "cvss": "7.5",
       "vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P"
     },
-    "summary": "Несколько use-after-free в ext/date (php_date.c): разбор сериализованных данных с типами «R»/«r» (DateTimeZone/DateInterval) в unserialize() позволяет атакующему прочитать память или выполнить произвольный код. Классический «PHP unserialize RCE» 2015 года.",
+    "summary": "Several use-after-free bugs in ext/date (php_date.c): parsing serialized data with 'R'/'r' types (DateTimeZone/DateInterval) in unserialize() lets an attacker read memory or execute arbitrary code. The classic 2015 'PHP unserialize RCE'.",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "5.4/5.5/5.6",
-        "notes": "Номинально затронуто (5.4.16/5.5.9/5.6 в образах); RHEL/Ubuntu/Alpine бэкпортят фиксы — нужен факт-чек фактической версии пакета. Точка входа — unserialize() с контролируемыми данными; в Zabbix-фронтенде пользовательские данные в unserialize напрямую не попадают → реальная достижимость низкая."
+        "notes": "Nominally affected (5.4.16/5.5.9/5.6 in the images); RHEL/Ubuntu/Alpine backport fixes — the actual package version needs fact-checking. The entry point is unserialize() with attacker-controlled data; the Zabbix frontend does not pass user data directly to unserialize → real reachability is low."
       },
       {
         "branch": "4.0",
         "php": "5.4 (centos7)",
-        "notes": "То же: номинально затронуто, бэкпорт в дистрибутиве."
+        "notes": "Same: nominally affected, distro backport."
       }
     ],
-    "impact": "RCE (или утечка памяти) при наличии у приложения точки входа unserialize() с контролируемыми данными.",
+    "impact": "RCE (or memory disclosure) if the application has an unserialize() entry point with attacker-controlled data.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2015-0273",
       "https://hackerone.com/reports/159948",
@@ -89,26 +89,26 @@
     "public_poc": {
       "exists": true,
       "url": "https://hackerone.com/reports/159948",
-      "notes": "HackerOne-отчёт с PoC (ryat); публичные эксплойты 2015 года; в Metasploit готового модуля нет."
+      "notes": "HackerOne report with PoC (ryat); public exploits from 2015; no ready-made Metasploit module."
     }
   },
   {
     "id": "CVE-2016-2107",
     "component": "openssl",
-    "component_version_range": "1.0.1 до 1.0.1t; 1.0.2 до 1.0.2h",
+    "component_version_range": "1.0.1 before 1.0.1t; 1.0.2 before 1.0.2h",
     "severity": {
       "cvss": "5.9",
       "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
     },
-    "summary": "Padding oracle в AES-NI-реализации CBC: реализация не учитывает выделение памяти при проверке padding, что позволяет дешифровать часть TLS-трафика. Практическая эксплуатация сложна (требуется оракул и большое число запросов), публичных готовых эксплойтов нет.",
+    "summary": "Padding oracle in the AES-NI CBC implementation: the implementation does not account for memory allocation while validating padding, allowing part of TLS traffic to be decrypted. Practical exploitation is difficult (requires an oracle and a large number of requests); no ready-made public exploits.",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "OpenSSL 1.0.1e/f/1.0.2 (2016)",
-        "notes": "Номинально затронуто до патча (вышел в мае 2016); сложно эксплуатируемо."
+        "notes": "Nominally affected until the patch (released May 2016); hard to exploit."
       }
     ],
-    "impact": "Частичное дешифрование TLS-трафика (условно, высокая сложность).",
+    "impact": "Partial decryption of TLS traffic (conditional, high difficulty).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2016-2107",
       "https://www.openssl.org/news/vulnerabilities.html"
@@ -116,26 +116,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Практического публичного эксплойта нет."
+      "notes": "No practical public exploit."
     }
   },
   {
     "id": "CVE-2016-6309",
     "component": "openssl",
-    "component_version_range": "1.1.0a (только)",
+    "component_version_range": "1.1.0a (only)",
     "severity": {
       "cvss": "9.8",
       "vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Use-after-free в statem/statem.c после realloc при больших размерах TLS-сообщений → DoS или возможное выполнение кода. Затрагивает только OpenSSL 1.1.0a (сентябрь 2016); образы Zabbix 2016–2017 использовали 1.0.1/1.0.2 → практически неприменимо.",
+    "summary": "Use-after-free in statem/statem.c after realloc with large TLS message sizes → DoS or possible code execution. Affects only OpenSSL 1.1.0a (September 2016); Zabbix 2016–2017 images used 1.0.1/1.0.2 → practically not applicable.",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "OpenSSL 1.0.1/1.0.2",
-        "notes": "1.0.1/1.0.2 не затронуты; 1.1.0a встречался только в самых свежих сборках осени 2016 — на практике для образов Zabbix неприменимо."
+        "notes": "1.0.1/1.0.2 are not affected; 1.1.0a appeared only in the very latest builds of autumn 2016 — in practice not applicable to Zabbix images."
       }
     ],
-    "impact": "DoS / потенциальный RCE (только 1.1.0a).",
+    "impact": "DoS / potential RCE (1.1.0a only).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2016-6309",
       "https://www.openssl.org/news/vulnerabilities.html"
@@ -143,31 +143,31 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC нет."
+      "notes": "No public PoC."
     }
   },
   {
     "id": "CVE-2016-6662",
     "component": "mysql",
-    "component_version_range": "MySQL ≤5.5.52 / 5.6.x ≤5.6.33 / 5.7.x ≤5.7.15; MariaDB <5.5.51 / 10.0.x <10.0.27 / 10.1.x <10.1.17; Percona (соотв.)",
+    "component_version_range": "MySQL ≤5.5.52 / 5.6.x ≤5.6.33 / 5.7.x ≤5.7.15; MariaDB <5.5.51 / 10.0.x <10.0.27 / 10.1.x <10.1.17; Percona (correspondingly)",
     "severity": {
       "cvss": "9.8",
       "vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Через лог-функциональность MySQL (или FILE-привилегии) злоумышленник пишет в конфигурационный файл my.cnf строку, заставляющую mysqld при следующем перезапуске загрузить произвольный код → RCE с правами root/mysql. Требует административных или FILE-привилегий БД (пост-эксплуатация или SQLi).",
+    "summary": "Via MySQL logging functionality (or FILE privileges), an attacker writes a string into the my.cnf configuration file that makes mysqld load arbitrary code on the next restart → RCE with root/mysql privileges. Requires administrative or DB FILE privileges (post-exploitation or SQLi).",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "MySQL 5.5/5.6/5.7",
-        "notes": "Затронуто до патча (5.7.16+/5.6.34+/5.5.53+); образы mysql из Docker Hub обновляются. Вектор — доступ FILE/adm к БД (обычно после компрометации учётки или через SQLi)."
+        "notes": "Affected before the patch (5.7.16+/5.6.34+/5.5.53+); mysql images from Docker Hub get updated. Vector — FILE/admin access to the DB (usually after compromising an account or via SQLi)."
       },
       {
         "branch": "4.0",
         "php": "MySQL 5.7",
-        "notes": "То же (5.7 ≤5.7.15 затронуто)."
+        "notes": "Same (5.7 ≤5.7.15 affected)."
       }
     ],
-    "impact": "Удалённый RCE с правами root (запись в конфиг → исполнение кода при рестарте mysqld); локальная эскалация mysql→root.",
+    "impact": "Remote RCE as root (config write → code execution on mysqld restart); local mysql→root escalation.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2016-6662",
       "https://www.exploit-db.com/exploits/40360",
@@ -176,31 +176,31 @@
     "public_poc": {
       "exists": true,
       "url": "https://www.exploit-db.com/exploits/40360",
-      "notes": "exploit-db 40360 (dawidgolunski); Metasploit-модули; также затрагивает MariaDB/Percona."
+      "notes": "exploit-db 40360 (dawidgolunski); Metasploit modules; also affects MariaDB/Percona."
     }
   },
   {
     "id": "CVE-2016-6663",
     "component": "mysql",
-    "component_version_range": "MySQL <5.5.52 / 5.6.x <5.6.33 / 5.7.x <5.7.15 (и 8.x до 8.0.1); MariaDB <5.5.52 / 10.0.x <10.0.28 / 10.1.x <10.1.18; Percona (соотв.)",
+    "component_version_range": "MySQL <5.5.52 / 5.6.x <5.6.33 / 5.7.x <5.7.15 (and 8.x up to 8.0.1); MariaDB <5.5.52 / 10.0.x <10.0.28 / 10.1.x <10.1.18; Percona (correspondingly)",
     "severity": {
       "cvss": "7.0",
       "vector": "CVSS:3.0/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Race condition при создании временных таблиц (CREATE TEMPORARY): локальный пользователь с правом на создание таблиц подменяет tmp-файл симлинком на произвольный файл → повышение привилегий до системного пользователя mysql (и далее до root через 6662-связку).",
+    "summary": "Race condition when creating temporary tables (CREATE TEMPORARY): a local user with table-creation privileges swaps a tmp file with a symlink to an arbitrary file → privilege escalation to the system mysql user (and further to root via the 6662 chain).",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "MySQL 5.5/5.6/5.7",
-        "notes": "Затронуто до патча; локальный вектор — нужен доступ к ОС под учёткой с правом CREATE TEMPORARY в БД (например, учётка Zabbix при её компрометации)."
+        "notes": "Affected before the patch; local vector — requires OS access under an account with the CREATE TEMPORARY privilege in the DB (e.g., the Zabbix account after its compromise)."
       },
       {
         "branch": "4.0",
         "php": "MySQL 5.7",
-        "notes": "То же."
+        "notes": "Same."
       }
     ],
-    "impact": "Повышение привилегий (пользователь БД → системный пользователь mysql → root).",
+    "impact": "Privilege escalation (DB user → system mysql user → root).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2016-6663",
       "https://www.exploit-db.com/exploits/40678",
@@ -209,7 +209,7 @@
     "public_poc": {
       "exists": true,
       "url": "https://www.exploit-db.com/exploits/40678",
-      "notes": "exploit-db 40678; Metasploit-модуль mysql_priv_esc."
+      "notes": "exploit-db 40678; Metasploit module mysql_priv_esc."
     }
   },
   {
@@ -220,20 +220,20 @@
       "cvss": "8.1",
       "vector": "CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "В выражениях <FilesMatch> символ «$» матчится также на перевод строки внутри имени файла: имя вида «shell.php%0a» обходит ограничения на типы файлов. Классический обход ограничений загрузки файлов (загрузка и исполнение .php там, где запрещено).",
+    "summary": "In <FilesMatch> expressions, the '$' character also matches a newline within the file name: a name like 'shell.php%0a' bypasses file-type restrictions. The classic file-upload restriction bypass (uploading and executing .php where it is forbidden).",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "httpd 2.4.6/2.4.7",
-        "notes": "Номинально 2.4.6/2.4.7 < 2.4.29 — затронуто; RHEL/Ubuntu бэкпортят фиксы. Требует конфигурации <FilesMatch> и механизма загрузки файлов; во фронтенде Zabbix загрузки файлов с таким ограничением нет → низкая применимость."
+        "notes": "Nominally 2.4.6/2.4.7 < 2.4.29 — affected; RHEL/Ubuntu backport fixes. Requires a <FilesMatch> configuration and a file-upload mechanism; the Zabbix frontend has no file uploads with such a restriction → low applicability."
       },
       {
         "branch": "4.0/5.0 (bionic)",
         "php": "httpd 2.4.29",
-        "notes": "2.4.29 входит в диапазон; бэкпорт Ubuntu. Применимость к Zabbix — низкая (нет upload-механизма)."
+        "notes": "2.4.29 is within the range; Ubuntu backport. Applicability to Zabbix is low (no upload mechanism)."
       }
     ],
-    "impact": "Обход access control и загрузка/исполнение произвольных файлов в уязвимых приложениях с <FilesMatch>.",
+    "impact": "Access control bypass and upload/execution of arbitrary files in vulnerable applications using <FilesMatch>.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2017-15715",
       "https://httpd.apache.org/security/vulnerabilities_24.html",
@@ -242,26 +242,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Метод публично известен (curl-загрузка с именем, оканчивающимся на \\n); канонического PoC-репозитория не зафиксировано."
+      "notes": "The technique is publicly known (curl upload with a name ending in \\n); no canonical PoC repository recorded."
     }
   },
   {
     "id": "CVE-2017-3737",
     "component": "openssl",
-    "component_version_range": "1.0.2 (с 1.0.2b) до 1.0.2m; 1.1.0 до 1.1.0g",
+    "component_version_range": "1.0.2 (from 1.0.2b) up to 1.0.2m; 1.1.0 up to 1.1.0g",
     "severity": {
       "cvss": "5.9",
       "vector": "CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
     },
-    "summary": "Ошибка распространения переноса (carry propagation) в Montgomery-возведении на x86_64: при выполнении RSA-операций с некорректными входными данными возможен крах или некорректные криптографические результаты. Практическая эксплуатация затруднена.",
+    "summary": "Carry propagation bug in Montgomery multiplication on x86_64: RSA operations with malformed input may crash or produce incorrect cryptographic results. Practical exploitation is difficult.",
     "applies_to_zabbix": [
       {
         "branch": "3.0/4.0",
         "php": "OpenSSL 1.0.2 (centos7 1.0.2k+, bionic 1.1.1)",
-        "notes": "Номинально в диапазоне до патча; низкая практическая значимость."
+        "notes": "Nominally in range before the patch; low practical significance."
       }
     ],
-    "impact": "DoS / некорректные результаты криптографических операций (RSA).",
+    "impact": "DoS / incorrect results of cryptographic operations (RSA).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2017-3737",
       "https://www.openssl.org/news/vulnerabilities.html"
@@ -269,36 +269,36 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC нет."
+      "notes": "No public PoC."
     }
   },
   {
     "id": "CVE-2017-7529",
     "component": "nginx",
-    "component_version_range": "0.5.6–1.13.2 (модуль range filter)",
+    "component_version_range": "0.5.6–1.13.2 (range filter module)",
     "severity": {
       "cvss": "7.5",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
     },
-    "summary": "Integer overflow в модуле range filter: специально сформированный Range-запрос заставляет nginx вернуть данные за пределами запрошенного диапазона (в т.ч. заголовок и содержимое кэш-файлов и соседние области памяти). Удалённое раскрытие чувствительных данных.",
+    "summary": "Integer overflow in the range filter module: a specially crafted Range request makes nginx return data outside the requested range (including cache file headers and contents, and adjacent memory areas). Remote disclosure of sensitive data.",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "nginx ~1.10 (alpine)",
-        "notes": "В диапазоне (≤1.13.2) → номинально затронуто; alpine бэкпортит фиксы. Раскрытие кэша/памяти nginx-фронтенда."
+        "notes": "In range (≤1.13.2) → nominally affected; alpine backports fixes. Disclosure of the nginx frontend cache/memory."
       },
       {
         "branch": "4.0",
         "php": "nginx 1.12-1.14 (alpine)",
-        "notes": "То же (в диапазоне)."
+        "notes": "Same (in range)."
       },
       {
         "branch": "5.0+",
         "php": "nginx 1.16+",
-        "notes": "Вне диапазона (1.16 > 1.13.2) → не затронуто."
+        "notes": "Out of range (1.16 > 1.13.2) → not affected."
       }
     ],
-    "impact": "Информационное раскрытие: чтение фрагментов памяти nginx-процесса / других ответов из кэша.",
+    "impact": "Information disclosure: reading fragments of nginx process memory / other responses from cache.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2017-7529",
       "https://nginx.org/en/security_advisories.html",
@@ -307,31 +307,31 @@
     "public_poc": {
       "exists": true,
       "url": "https://gist.github.com/thehappydinoa/bc3278aea845b4f578362e9363c51115",
-      "notes": "Известные PoC-скрипты (gist/Python); массовые проверки 2017 года."
+      "notes": "Well-known PoC scripts (gist/Python); mass scanning in 2017."
     }
   },
   {
     "id": "CVE-2018-1058",
     "component": "postgresql",
-    "component_version_range": "9.3–10.x (закрыто в 9.3.22/9.4.17/9.5.12/9.6.8/10.3, для 11 — в 11.1)",
+    "component_version_range": "9.3–10.x (fixed in 9.3.22/9.4.17/9.5.12/9.6.8/10.3, and in 11.1 for 11)",
     "severity": {
       "cvss": "8.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Search_path hijack: пользователь с правом CREATE в схеме (обычно public) может подменить функции/операторы, которые привилегированные пользователи и утилиты (pg_dump и др.) вызывают без полной квалификации. Приводит к выполнению кода с правами суперпользователя БД.",
+    "summary": "Search_path hijack: a user with CREATE privilege on a schema (usually public) can replace functions/operators that privileged users and utilities (pg_dump, etc.) call without full qualification. Leads to code execution as the DB superuser.",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "PG 9.3-9.6",
-        "notes": "Затронуто до патча; образы postgres из Docker Hub обновляются — свежие теги патчены. Вектор требует учётку БД с CREATE в public-схеме; у выделенного пользователя Zabbix обычно таких прав нет → низкая применимость для внешнего атакующего; актуально при многоарендном использовании сервера БД."
+        "notes": "Affected before the patch; postgres images from Docker Hub get updated — recent tags are patched. The vector requires a DB account with CREATE on the public schema; the dedicated Zabbix user usually lacks such rights → low applicability for an external attacker; relevant in multi-tenant use of the DB server."
       },
       {
         "branch": "4.0/5.0",
         "php": "PG 10/11",
-        "notes": "То же."
+        "notes": "Same."
       }
     ],
-    "impact": "Повышение привилегий в БД → выполнение кода от имени суперпользователя (через привилегированные утилиты/приложения).",
+    "impact": "Privilege escalation in the DB → code execution as superuser (via privileged utilities/applications).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2018-1058",
       "https://wiki.postgresql.org/wiki/A_Guide_to_CVE-2018-1058",
@@ -340,31 +340,31 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Техника задокументирована (A Guide to CVE-2018-1058); готовых «из коробки» эксплойтов нет."
+      "notes": "Technique documented (A Guide to CVE-2018-1058); no ready-made 'out-of-the-box' exploits."
     }
   },
   {
     "id": "CVE-2018-19518",
     "component": "php",
-    "component_version_range": "imap-расширение: 5.6.0–5.6.38; 7.0.0–7.0.32; 7.1.0–7.1.24; 7.2.0–7.2.12",
+    "component_version_range": "imap extension: 5.6.0–5.6.38; 7.0.0–7.0.32; 7.1.0–7.1.24; 7.2.0–7.2.12",
     "severity": {
       "cvss": "7.5",
       "vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "UW IMAP Toolkit (используется imap_open() в PHP) запускает rsh без экранирования аргументов: имя почтового ящика с инъекцией аргументов приводит к выполнению OS-команд. Требует расширения php-imap и передачи пользовательского ввода в imap_open().",
+    "summary": "UW IMAP Toolkit (used by imap_open() in PHP) runs rsh without argument escaping: a mailbox name with argument injection leads to OS command execution. Requires the php-imap extension and passing user input to imap_open().",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "5.4/5.5/5.6",
-        "notes": "Условно: только если в образе включено php-imap И приложение вызывает imap_open() с пользовательским вводом. Фронтенд Zabbix IMAP не использует (медиатипы — SMTP/скрипты) → низкая применимость; проверить факт наличия расширения у цели."
+        "notes": "Conditional: only if the image has php-imap enabled AND the application calls imap_open() with user input. The Zabbix frontend does not use IMAP (media types are SMTP/scripts) → low applicability; verify whether the extension is actually present on the target."
       },
       {
         "branch": "4.0/5.0",
         "php": "7.0-7.2",
-        "notes": "То же условие (php-imap + вызов imap_open)."
+        "notes": "Same condition (php-imap + an imap_open call)."
       }
     ],
-    "impact": "Удалённое выполнение команд на сервере при наличии уязвимого вызова imap_open().",
+    "impact": "Remote command execution on the server if a vulnerable imap_open() call exists.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2018-19518",
       "https://www.exploit-db.com/exploits/45914",
@@ -384,20 +384,20 @@
       "cvss": "7.8",
       "vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Локальное повышение привилегий до root: код, исполняемый в менее привилегированных дочерних процессах/потоках (например, PHP через mod_php), через гонку в scoreboard может перезаписать память родительского процесса и выполнить код с правами root. В KEV.",
+    "summary": "Local privilege escalation to root: code running in less privileged child processes/threads (e.g., PHP via mod_php) can exploit a race in the scoreboard to overwrite the parent process memory and execute code as root. In KEV.",
     "applies_to_zabbix": [
       {
         "branch": "4.0",
         "php": "httpd 2.4.29 (bionic)",
-        "notes": "2.4.29 в диапазоне 2.4.17-2.4.38 → номинально затронуто (бэкпорт Ubuntu). Вектор локальный: нужен предварительный exec кода как пользователь apache."
+        "notes": "2.4.29 is within 2.4.17-2.4.38 → nominally affected (Ubuntu backport). Local vector: requires prior code execution as the apache user."
       },
       {
-        "branch": "5.0 (ранние)",
+        "branch": "5.0 (early)",
         "php": "httpd 2.4.29 (bionic)",
-        "notes": "То же; focal (2.4.41) и centos7 (2.4.6) вне диапазона."
+        "notes": "Same; focal (2.4.41) and centos7 (2.4.6) are out of range."
       }
     ],
-    "impact": "Эскалация до root на сервере при наличии возможности исполнять код в контексте пользователя apache (например, через PHP-уязвимость или mod_cgi).",
+    "impact": "Escalation to root on the server if code can be executed in the apache user context (e.g., via a PHP vulnerability or mod_cgi).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2019-0211",
       "https://www.tenable.com/blog/cve-2019-0211-proof-of-concept-for-apache-root-privilege-escalation-vulnerability-published",
@@ -406,31 +406,31 @@
     "public_poc": {
       "exists": true,
       "url": "https://www.tenable.com/blog/cve-2019-0211-proof-of-concept-for-apache-root-privilege-escalation-vulnerability-published",
-      "notes": "Публичный PoC опубликован (2019); KEV (CISA)."
+      "notes": "Public PoC published (2019); KEV (CISA)."
     }
   },
   {
     "id": "CVE-2019-10164",
     "component": "postgresql",
-    "component_version_range": "10.x до 10.9; 11.x до 11.4",
+    "component_version_range": "10.x before 10.9; 11.x before 11.4",
     "severity": {
       "cvss": "8.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Stack-based buffer overflow: любой аутентифицированный пользователь может переполнить стек, сменив собственный пароль на специально сформированное значение (SCRAM). Приводит к краху сервера, потенциально к выполнению кода в контексте postgres-процесса.",
+    "summary": "Stack-based buffer overflow: any authenticated user can overflow the stack by changing their own password to a specially crafted value (SCRAM). Leads to a server crash, potentially to code execution in the postgres process context.",
     "applies_to_zabbix": [
       {
         "branch": "4.0",
         "php": "PG 10/11",
-        "notes": "Затронуто (10.x <10.9, 11.x <11.4); любой аутентифицированный пользователь БД (в т.ч. учётка Zabbix при компрометации) может вызвать крах/потенциальный RCE."
+        "notes": "Affected (10.x <10.9, 11.x <11.4); any authenticated DB user (including the Zabbix account after compromise) can trigger a crash/potential RCE."
       },
       {
         "branch": "5.0",
         "php": "PG 10/11",
-        "notes": "То же для используемых PG 10/11."
+        "notes": "Same for the PG 10/11 used."
       }
     ],
-    "impact": "DoS (крах сервера) или выполнение кода в контексте сервера БД аутентифицированным пользователем.",
+    "impact": "DoS (server crash) or code execution in the DB server context by an authenticated user.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2019-10164",
       "https://www.postgresql.org/support/security/"
@@ -438,36 +438,36 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено."
+      "notes": "No public PoC found."
     }
   },
   {
     "id": "CVE-2019-11043",
     "component": "php-fpm",
-    "component_version_range": "7.1.x до 7.1.33; 7.2.x до 7.2.24; 7.3.x до 7.3.11 (php-fpm)",
+    "component_version_range": "7.1.x before 7.1.33; 7.2.x before 7.2.24; 7.3.x before 7.3.11 (php-fpm)",
     "severity": {
       "cvss": "8.7",
       "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:N"
     },
-    "summary": "Underflow в обработке PATH_INFO в php-fpm: при типовой конфигурации nginx+php-fpm (fastcgi_split_path_info) FPM пишет за границы буфера в область данных FCGI-протокола. Позволяет удалённо выполнить произвольный код без аутентификации. Массово эксплуатировался (в т.ч. в 2021), входит в KEV.",
+    "summary": "Underflow in php-fpm PATH_INFO handling: with a typical nginx+php-fpm configuration (fastcgi_split_path_info), FPM writes past the buffer into the FCGI protocol data area. Allows remote arbitrary code execution without authentication. Massively exploited (including in 2021); in KEV.",
     "applies_to_zabbix": [
       {
         "branch": "4.0",
         "php": "7.2 (alpine, php-fpm)",
-        "notes": "nginx-образы Zabbix используют nginx+php-fpm с типовым location ~ \\.php$ и fastcgi_split_path_info → затронуто при PHP <7.2.24 (до патча дистрибутива alpine)."
+        "notes": "Zabbix nginx images use nginx+php-fpm with the typical location ~ \\.php$ and fastcgi_split_path_info → affected when PHP <7.2.24 (before the alpine distro patch)."
       },
       {
         "branch": "5.0",
-        "php": "7.3 (alpine:3.11, ранние 5.0.x)",
-        "notes": "Затронуто при PHP <7.3.11; более поздние 5.0.x на alpine 3.12/3.13 с PHP 7.4 — не затронуты."
+        "php": "7.3 (alpine:3.11, early 5.0.x)",
+        "notes": "Affected when PHP <7.3.11; later 5.0.x on alpine 3.12/3.13 with PHP 7.4 — not affected."
       },
       {
         "branch": "5.0",
         "php": "7.2 (centos8/bionic)",
-        "notes": "httpd+mod_php варианты не затронуты (уязвим только php-fpm); актуально для nginx-сборок."
+        "notes": "httpd+mod_php variants are not affected (only php-fpm is vulnerable); relevant for nginx builds."
       }
     ],
-    "impact": "Полный удалённый RCE (выполнение кода от имени php-fpm-пользователя) без аутентификации на серверах nginx+php-fpm.",
+    "impact": "Full remote RCE (code execution as the php-fpm user) without authentication on nginx+php-fpm servers.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2019-11043",
       "https://github.com/neex/phuip-fpizdam",
@@ -477,26 +477,26 @@
     "public_poc": {
       "exists": true,
       "url": "https://github.com/neex/phuip-fpizdam",
-      "notes": "phuip-fpizdam (neex) — рабочий эксплойт; массовая эксплуатация, KEV (CISA)."
+      "notes": "phuip-fpizdam (neex) — a working exploit; mass exploitation, KEV (CISA)."
     }
   },
   {
     "id": "CVE-2019-11045",
     "component": "php",
-    "component_version_range": "7.2.x до 7.2.26; 7.3.x до 7.3.13; 7.4.0",
+    "component_version_range": "7.2.x before 7.2.26; 7.3.x before 7.3.13; 7.4.0",
     "severity": {
       "cvss": "3.7",
       "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N"
     },
-    "summary": "Класс DirectoryIterator принимает имена файлов со встроенным байтом \\0 и обрезает имя на этом байте. Это позволяет обходить проверки путей в приложениях, контролирующих допустимые для доступа директории (info disclosure / обход access control).",
+    "summary": "The DirectoryIterator class accepts file names containing an embedded \\0 byte and truncates the name at that byte. This allows bypassing path checks in applications that restrict the directories accessible (info disclosure / access control bypass).",
     "applies_to_zabbix": [
       {
         "branch": "5.0",
         "php": "7.2/7.3",
-        "notes": "Номинально затронуто (7.2/7.3 в образах bionic/centos8/alpine); Zabbix-фронтенд не использует DirectoryIterator с пользовательскими именами для проверки путей → низкая практическая значимость."
+        "notes": "Nominally affected (7.2/7.3 in bionic/centos8/alpine images); the Zabbix frontend does not use DirectoryIterator with user-supplied names for path checks → low practical significance."
       }
     ],
-    "impact": "Обход ограничений доступа к файлам (раскрытие файлов) — зависит от логики приложения.",
+    "impact": "Bypass of file access restrictions (file disclosure) — depends on application logic.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2019-11045",
       "https://www.php.net/ChangeLog-7.php"
@@ -504,26 +504,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного эксплойта не найдено."
+      "notes": "No public exploit found."
     }
   },
   {
     "id": "CVE-2019-11047",
     "component": "php",
-    "component_version_range": "7.2.x до 7.2.26; 7.3.x до 7.3.13; 7.4.0 (расширение exif)",
+    "component_version_range": "7.2.x before 7.2.26; 7.3.x before 7.3.13; 7.4.0 (exif extension)",
     "severity": {
       "cvss": "4.8",
       "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:L"
     },
-    "summary": "Чтение за границей выделенного буфера при разборе EXIF-данных изображения (exif_read_data()): специально сформированное изображение приводит к раскрытию содержимого памяти или краху. Требует расширения exif и обработки пользовательских изображений.",
+    "summary": "Buffer overread when parsing image EXIF data (exif_read_data()): a specially crafted image leads to memory content disclosure or a crash. Requires the exif extension and processing of user-supplied images.",
     "applies_to_zabbix": [
       {
         "branch": "5.0",
         "php": "7.2/7.3",
-        "notes": "Условно: нужны расширение exif и вызов exif_read_data() на пользовательских изображениях; Zabbix-фронтенд изображения с EXIF не разбирает → низкая значимость."
+        "notes": "Conditional: requires the exif extension and calls to exif_read_data() on user images; the Zabbix frontend does not parse EXIF images → low significance."
       }
     ],
-    "impact": "Информационное раскрытие (чтение памяти) / DoS в приложениях, разбирающих EXIF пользовательских изображений.",
+    "impact": "Information disclosure (memory read) / DoS in applications parsing EXIF of user images.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2019-11047",
       "https://www.php.net/ChangeLog-7.php"
@@ -531,26 +531,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного эксплойта не найдено."
+      "notes": "No public exploit found."
     }
   },
   {
     "id": "CVE-2019-9511",
     "component": "nginx",
-    "component_version_range": "HTTP/2 (Data Dribble): все версии до 1.17.3/1.16.1",
+    "component_version_range": "HTTP/2 (Data Dribble): all versions before 1.17.3/1.16.1",
     "severity": {
       "cvss": "7.5",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
     },
-    "summary": "HTTP/2-атака «Data Dribble»: манипуляции окном потока заставляют воркер удерживать большое количество данных малыми порциями → истощение ресурсов (CPU/память). Только DoS.",
+    "summary": "HTTP/2 'Data Dribble' attack: stream window manipulations force the worker to hold a large amount of data in small chunks → resource exhaustion (CPU/memory). DoS only.",
     "applies_to_zabbix": [
       {
         "branch": "4.0/5.0",
         "php": "nginx 1.12-1.16 (alpine)",
-        "notes": "Номинально затронуто; HTTP/2 в образах Zabbix включается только при настройке TLS (по умолчанию фронтенд слушает HTTP:8080) → условно. DoS — вне основного скоупа."
+        "notes": "Nominally affected; HTTP/2 in Zabbix images is enabled only when TLS is configured (by default the frontend listens on HTTP:8080) → conditional. DoS — outside the main scope."
       }
     ],
-    "impact": "Отказ в обслуживании (истощение ресурсов nginx-воркеров).",
+    "impact": "Denial of service (exhaustion of nginx worker resources).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2019-9511",
       "https://nginx.org/en/security_advisories.html"
@@ -558,26 +558,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Техники описаны в advisory; публичных PoC-эксплойтов нет."
+      "notes": "Techniques described in the advisory; no public PoC exploits."
     }
   },
   {
     "id": "CVE-2019-9513",
     "component": "nginx",
-    "component_version_range": "HTTP/2 (Resource Loop): все версии до 1.17.3/1.16.1",
+    "component_version_range": "HTTP/2 (Resource Loop): all versions before 1.17.3/1.16.1",
     "severity": {
       "cvss": "7.5",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
     },
-    "summary": "HTTP/2-атака «Resource Loop»: постоянная перестановка приоритетов потоков заставляет сервер бесконечно пересчитывать приоритеты → истощение CPU. Только DoS.",
+    "summary": "HTTP/2 'Resource Loop' attack: continuous reordering of stream priorities makes the server endlessly recompute priorities → CPU exhaustion. DoS only.",
     "applies_to_zabbix": [
       {
         "branch": "4.0/5.0",
         "php": "nginx 1.12-1.16 (alpine)",
-        "notes": "То же, что CVE-2019-9511: номинально затронуто, HTTP/2 включается только с TLS → условно."
+        "notes": "Same as CVE-2019-9511: nominally affected, HTTP/2 is enabled only with TLS → conditional."
       }
     ],
-    "impact": "Отказ в обслуживании (истощение CPU).",
+    "impact": "Denial of service (CPU exhaustion).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2019-9513",
       "https://nginx.org/en/security_advisories.html"
@@ -585,31 +585,31 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичных PoC-эксплойтов нет."
+      "notes": "No public PoC exploits."
     }
   },
   {
     "id": "CVE-2020-25695",
     "component": "postgresql",
-    "component_version_range": "до 13.1/12.5/11.10/10.15/9.6.20/9.5.24",
+    "component_version_range": "before 13.1/12.5/11.10/10.15/9.6.20/9.5.24",
     "severity": {
       "cvss": "8.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Пользователь с правом создавать не-временные объекты хотя бы в одной схеме может выполнить произвольный код: вредоносные объекты подхватываются привилегированными операциями (родственно CVE-2018-1058, поиск по search_path при выполнении функций).",
+    "summary": "A user with the right to create non-temporary objects in at least one schema can execute arbitrary code: malicious objects are picked up by privileged operations (related to CVE-2018-1058, search_path lookup during function execution).",
     "applies_to_zabbix": [
       {
         "branch": "3.0",
         "php": "PG 9.5/9.6",
-        "notes": "Затронуто до патча; вектор — пользователь БД с CREATE на схему; для выделенной БД Zabbix применимость низкая."
+        "notes": "Affected before the patch; vector — a DB user with CREATE on a schema; applicability is low for the dedicated Zabbix DB."
       },
       {
         "branch": "4.0/5.0",
         "php": "PG 10-13",
-        "notes": "То же."
+        "notes": "Same."
       }
     ],
-    "impact": "Выполнение произвольного кода от имени суперпользователя БД (при наличии прав CREATE в схеме).",
+    "impact": "Arbitrary code execution as the DB superuser (given CREATE rights on a schema).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2020-25695",
       "https://www.postgresql.org/support/security/"
@@ -617,31 +617,31 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено."
+      "notes": "No public PoC found."
     }
   },
   {
     "id": "CVE-2021-23017",
     "component": "nginx",
-    "component_version_range": "0.6.18–1.20.0 (закрыто в 1.20.1/1.21.0)",
+    "component_version_range": "0.6.18–1.20.0 (fixed in 1.20.1/1.21.0)",
     "severity": {
       "cvss": "7.7",
       "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:L"
     },
-    "summary": "Off-by-one в DNS-resolver’е nginx: атакующий, способный подделывать UDP-ответы DNS-сервера, вызывает запись 1 байта («.») за границей heap-буфера → крах воркера или потенциально более серьёзные последствия. Требует использования resolver + proxy_pass с переменной.",
+    "summary": "Off-by-one in the nginx DNS resolver: an attacker able to spoof UDP responses from the DNS server triggers a 1-byte ('.') write past a heap buffer → worker crash or potentially more serious consequences. Requires resolver + proxy_pass with a variable.",
     "applies_to_zabbix": [
       {
         "branch": "4.0",
         "php": "nginx 1.12-1.14 (alpine)",
-        "notes": "В диапазоне; но Zabbix nginx-образы используют resolver только при proxy_pass с переменной (не типовой конфиг) → условно."
+        "notes": "In range; but Zabbix nginx images use the resolver only with proxy_pass with a variable (not a typical config) → conditional."
       },
       {
         "branch": "5.0/6.0",
         "php": "nginx 1.16-1.20 (alpine)",
-        "notes": "1.16-1.20 в диапазоне до 1.20.1 → номинально затронуто при использовании resolver; закрыто в 1.20.1/1.21.0."
+        "notes": "1.16-1.20 is within the range up to 1.20.1 → nominally affected when the resolver is used; fixed in 1.20.1/1.21.0."
       }
     ],
-    "impact": "Крах воркера (DoS); потенциальный RCE (публично не подтверждён).",
+    "impact": "Worker crash (DoS); potential RCE (not publicly confirmed).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2021-23017",
       "https://www.x41-dsec.de/lab/advisories/x41-2021-002-nginx-resolver-copy",
@@ -650,26 +650,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "X41-advisory с анализом; публичного RCE-эксплойта нет."
+      "notes": "X41 advisory with analysis; no public RCE exploit."
     }
   },
   {
     "id": "CVE-2021-41773",
     "component": "apache",
-    "component_version_range": "httpd 2.4.49 (только)",
+    "component_version_range": "httpd 2.4.49 (only)",
     "severity": {
       "cvss": "9.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Ошибка нормализации путей в httpd 2.4.49: URL-кодированный «../» обходит Alias-ограничения и читает файлы вне разрешённых каталогов; при включённом mod_cgi возможен RCE. Массово эксплуатировался в октябре 2021 (KEV).",
+    "summary": "Path normalization flaw in httpd 2.4.49: URL-encoded '../' bypasses Alias restrictions and reads files outside permitted directories; RCE is possible with mod_cgi enabled. Massively exploited in October 2021 (KEV).",
     "applies_to_zabbix": [
       {
         "branch": "—",
         "php": "httpd 2.4.49",
-        "notes": "Официальные образы Zabbix НЕ содержат httpd 2.4.49 (2.4.6/2.4.7/2.4.29/2.4.37/2.4.41/2.4.52/2.4.58). Применимо только к кастомным образам, собранным на дистрибутивах с 2.4.49 (напр. Ubuntu 21.10)."
+        "notes": "Official Zabbix images do NOT contain httpd 2.4.49 (2.4.6/2.4.7/2.4.29/2.4.37/2.4.41/2.4.52/2.4.58). Applicable only to custom images built on distributions with 2.4.49 (e.g., Ubuntu 21.10)."
       }
     ],
-    "impact": "LFI (чтение произвольных файлов, в т.ч. /etc/passwd) → RCE при включённом mod_cgi.",
+    "impact": "LFI (arbitrary file reading, including /etc/passwd) → RCE with mod_cgi enabled.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2021-41773",
       "https://httpd.apache.org/security/vulnerabilities_24.html",
@@ -678,7 +678,7 @@
     "public_poc": {
       "exists": true,
       "url": "https://www.exploit-db.com/exploits/50383",
-      "notes": "exploit-db 50383/50406; массовые PoC; KEV (CISA)."
+      "notes": "exploit-db 50383/50406; mass PoCs; KEV (CISA)."
     }
   },
   {
@@ -689,15 +689,15 @@
       "cvss": "9.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Фикс CVE-2021-41773 в 2.4.50 оказался неполным: двойное URL-кодирование («%%32%65») снова обходит нормализацию путей. Тот же path traversal; RCE при mod_cgi. KEV.",
+    "summary": "The CVE-2021-41773 fix in 2.4.50 turned out incomplete: double URL-encoding ('%%32%65') again bypasses path normalization. Same path traversal; RCE with mod_cgi. KEV.",
     "applies_to_zabbix": [
       {
         "branch": "—",
         "php": "httpd 2.4.49/2.4.50",
-        "notes": "Официальные образы Zabbix не содержат 2.4.49/2.4.50 → не применимо; актуально для кастомных сборок указанных версий."
+        "notes": "Official Zabbix images do not contain 2.4.49/2.4.50 → not applicable; relevant for custom builds of the specified versions."
       }
     ],
-    "impact": "LFI → RCE (при mod_cgi) / чтение произвольных файлов.",
+    "impact": "LFI → RCE (with mod_cgi) / arbitrary file reading.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2021-42013",
       "https://httpd.apache.org/security/vulnerabilities_24.html",
@@ -712,20 +712,20 @@
   {
     "id": "CVE-2021-44790",
     "component": "apache",
-    "component_version_range": "httpd 2.4.0–2.4.51 (модуль mod_lua)",
+    "component_version_range": "httpd 2.4.0–2.4.51 (mod_lua module)",
     "severity": {
       "cvss": "9.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Переполнение буфера в multipart-парсере mod_lua (r:parsebody()) при тщательно сформированном теле запроса → потенциальный RCE. Требует загруженного mod_lua.",
+    "summary": "Buffer overflow in the mod_lua multipart parser (r:parsebody()) with a carefully crafted request body → potential RCE. Requires mod_lua to be loaded.",
     "applies_to_zabbix": [
       {
         "branch": "—",
         "php": "—",
-        "notes": "mod_lua не используется в официальных образах Zabbix → НЕ применимо. Включено для полноты списка Apache-CVE."
+        "notes": "mod_lua is not used in official Zabbix images → NOT applicable. Included for completeness of the Apache CVE list."
       }
     ],
-    "impact": "DoS; потенциальный RCE только при включённом mod_lua (Apache не подтвердил эксплуатацию).",
+    "impact": "DoS; potential RCE only with mod_lua enabled (Apache did not confirm exploitation).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2021-44790",
       "https://httpd.apache.org/security/vulnerabilities_24.html"
@@ -733,26 +733,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не опубликовано (по заявлению Apache)."
+      "notes": "No public PoC published (per Apache's statement)."
     }
   },
   {
     "id": "CVE-2022-3602",
     "component": "openssl",
-    "component_version_range": "3.0.0–3.0.6 (X.509, email-адреса в сертификатах)",
+    "component_version_range": "3.0.0–3.0.6 (X.509, email addresses in certificates)",
     "severity": {
       "cvss": "7.5",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
     },
-    "summary": "Переполнение на 4 байта при проверке ограничений имён (name constraint) для X.509-сертификатов с punycode-адресами email. Срабатывает после проверки подписи цепочки: нужен сертификат от подписывающего CA или приложение, продолжающее проверку после ошибки построения цепочки. Крах или потенциальное выполнение кода.",
+    "summary": "4-byte overflow during name constraint checking of X.509 certificates with punycode email addresses. Triggered after chain signature verification: requires a certificate from a signing CA or an application that continues verification after a chain-building error. Crash or potential code execution.",
     "applies_to_zabbix": [
       {
         "branch": "6.4",
         "php": "OpenSSL 3.0.2 (jammy)",
-        "notes": "3.0.2 в диапазоне (≤3.0.6) → номинально затронуто; Ubuntu бэкпортит фиксы (3.0.2-0ubuntu1.x). Noble (3.0.13) и focal (1.1.1) не затронуты (фикс в 3.0.7; ветка 1.1.1 не уязвима)."
+        "notes": "3.0.2 is in range (≤3.0.6) → nominally affected; Ubuntu backports fixes (3.0.2-0ubuntu1.x). Noble (3.0.13) and focal (1.1.1) are not affected (fix in 3.0.7; the 1.1.1 branch is not vulnerable)."
       }
     ],
-    "impact": "Крах (DoS) при обработке вредоносного сертификата; RCE публично не подтверждён.",
+    "impact": "Crash (DoS) when processing a malicious certificate; RCE not publicly confirmed.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2022-3602",
       "https://www.openssl.org/news/vulnerabilities.html",
@@ -761,26 +761,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Только краш-PoC; RCE-эксплойта нет."
+      "notes": "Crash PoC only; no RCE exploit."
     }
   },
   {
     "id": "CVE-2022-3786",
     "component": "openssl",
-    "component_version_range": "3.0.0–3.0.6 (X.509, email-адреса с длинным punycode-суффиксом)",
+    "component_version_range": "3.0.0–3.0.6 (X.509, email addresses with a long punycode suffix)",
     "severity": {
       "cvss": "7.5",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
     },
-    "summary": "Переполнение буфера при разборе email-адресов с длинным punycode-суффиксом в X.509-сертификатах (в проверке ограничений имён). Условия те же, что у CVE-2022-3602; приводит к краху или потенциально к выполнению кода.",
+    "summary": "Buffer overflow when parsing email addresses with a long punycode suffix in X.509 certificates (in name constraint checking). Conditions are the same as CVE-2022-3602; leads to a crash or potentially code execution.",
     "applies_to_zabbix": [
       {
         "branch": "6.4",
         "php": "OpenSSL 3.0.2 (jammy)",
-        "notes": "Номинально затронуто до бэкпорта; noble (3.0.13) не затронут."
+        "notes": "Nominally affected before the backport; noble (3.0.13) not affected."
       }
     ],
-    "impact": "Крах (DoS); потенциальный RCE (не подтверждён).",
+    "impact": "Crash (DoS); potential RCE (not confirmed).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2022-3786",
       "https://www.openssl.org/news/vulnerabilities.html",
@@ -789,31 +789,31 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC-эксплойта нет."
+      "notes": "No public PoC exploit."
     }
   },
   {
     "id": "CVE-2023-0286",
     "component": "openssl",
-    "component_version_range": "3.0.x до 3.0.8; 1.1.1 до 1.1.1t; 1.0.2 до 1.0.2zg",
+    "component_version_range": "3.0.x before 3.0.8; 1.1.1 before 1.1.1t; 1.0.2 before 1.0.2zg",
     "severity": {
       "cvss": "7.4",
       "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:H"
     },
-    "summary": "Type confusion при обработке X.400-адресов в X.509 GeneralName: поле разбирается как ASN1_STRING, тогда как структура ожидает другой тип → повреждение памяти при проверке имени сертификата. Крах или потенциальный RCE при обработке вредоносного сертификата с X.400-адресами.",
+    "summary": "Type confusion when processing X.400 addresses in X.509 GeneralName: the field is parsed as ASN1_STRING while the structure expects a different type → memory corruption during certificate name checking. Crash or potential RCE when processing a malicious certificate with X.400 addresses.",
     "applies_to_zabbix": [
       {
         "branch": "6.4",
         "php": "OpenSSL 3.0.2 (jammy)",
-        "notes": "Номинально затронуто до бэкпорта; noble (3.0.13) и focal (1.1.1f с бэкпортом) — проверить версию пакета."
+        "notes": "Nominally affected before the backport; noble (3.0.13) and focal (1.1.1f with backport) — check the package version."
       },
       {
         "branch": "5.0/6.0",
         "php": "OpenSSL 1.1.1 (bionic/focal)",
-        "notes": "1.1.1 <1.1.1t номинально затронуто; бэкпорт дистрибутива."
+        "notes": "1.1.1 <1.1.1t nominally affected; distro backport."
       }
     ],
-    "impact": "Крах (DoS) или потенциальный RCE при проверке вредоносного сертификата (X.400).",
+    "impact": "Crash (DoS) or potential RCE when checking a malicious certificate (X.400).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2023-0286",
       "https://www.openssl.org/news/vulnerabilities.html"
@@ -821,26 +821,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено."
+      "notes": "No public PoC found."
     }
   },
   {
     "id": "CVE-2023-25690",
     "component": "apache",
-    "component_version_range": "httpd 2.4.0–2.4.55 (mod_proxy + RewriteRule/ProxyPassMatch с неспецифичным паттерном)",
+    "component_version_range": "httpd 2.4.0–2.4.55 (mod_proxy + RewriteRule/ProxyPassMatch with a non-specific pattern)",
     "severity": {
       "cvss": "9.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "HTTP Request Smuggling в mod_proxy: при конфигурации mod_proxy совместно с RewriteRule/ProxyPassMatch с неспецифичным паттерном атакующий вклинивает второй запрос в соединение к бэкенду. Следствия — отравление кэша, обход ACL, потенциально RCE на бэкенде.",
+    "summary": "HTTP Request Smuggling in mod_proxy: when mod_proxy is configured together with RewriteRule/ProxyPassMatch with a non-specific pattern, the attacker injects a second request into the backend connection. Consequences — cache poisoning, ACL bypass, potentially RCE on the backend.",
     "applies_to_zabbix": [
       {
         "branch": "—",
         "php": "—",
-        "notes": "Zabbix-образы по умолчанию не используют mod_proxy (фронтенд отдаётся напрямую через mod_php/php-fpm). Условно применимо, если фронтенд Zabbix проксируется через httpd с mod_proxy."
+        "notes": "Zabbix images do not use mod_proxy by default (the frontend is served directly via mod_php/php-fpm). Conditionally applicable if the Zabbix frontend is proxied through httpd with mod_proxy."
       }
     ],
-    "impact": "Request smuggling → кэш-отравление, обход ACL, в перспективе RCE на проксируемом бэкенде.",
+    "impact": "Request smuggling → cache poisoning, ACL bypass, potentially RCE on the proxied backend.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2023-25690",
       "https://httpd.apache.org/security/vulnerabilities_24.html",
@@ -849,31 +849,31 @@
     "public_poc": {
       "exists": true,
       "url": "https://github.com/dhmosfunk/CVE-2023-25690-POC",
-      "notes": "Несколько GitHub-PoC (dhmosfunk и др.), packetstorm."
+      "notes": "Several GitHub PoCs (dhmosfunk and others), packetstorm."
     }
   },
   {
     "id": "CVE-2023-5868",
     "component": "postgresql",
-    "component_version_range": "до 16.1/15.5/14.10/13.13/12.17",
+    "component_version_range": "before 16.1/15.5/14.10/13.13/12.17",
     "severity": {
       "cvss": "4.3",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N"
     },
-    "summary": "Раскрытие памяти: вызовы агрегатных функций с аргументами типа «unknown» позволяют удалённому пользователю прочитать фрагменты памяти сервера (остатки от предыдущих запросов). Требует доступа к БД.",
+    "summary": "Memory disclosure: calls to aggregate functions with 'unknown'-type arguments let a remote user read fragments of server memory (leftovers from previous queries). Requires DB access.",
     "applies_to_zabbix": [
       {
         "branch": "5.0",
         "php": "PG 12/13",
-        "notes": "Затронуто до патча; нужен доступ к БД (SELECT на агрегаты с unknown-аргументами)."
+        "notes": "Affected before the patch; requires DB access (SELECT on aggregates with unknown arguments)."
       },
       {
         "branch": "6.0/6.4/7.0",
         "php": "PG 13-16",
-        "notes": "То же; патчи в 16.1/15.5/14.10/13.13/12.17."
+        "notes": "Same; patches in 16.1/15.5/14.10/13.13/12.17."
       }
     ],
-    "impact": "Информационное раскрытие (фрагменты памяти сервера БД) аутентифицированным пользователем.",
+    "impact": "Information disclosure (fragments of DB server memory) by an authenticated user.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2023-5868",
       "https://www.postgresql.org/support/security/"
@@ -881,31 +881,31 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено."
+      "notes": "No public PoC found."
     }
   },
   {
     "id": "CVE-2023-5869",
     "component": "postgresql",
-    "component_version_range": "до 16.2/15.5/14.10/13.13/12.17",
+    "component_version_range": "before 16.2/15.5/14.10/13.13/12.17",
     "severity": {
       "cvss": "8.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Integer overflow при модификации значений SQL-массивов: отсутствие проверок переполнения позволяет аутентифицированному пользователю вызвать повреждение памяти и выполнить произвольный код в контексте сервера БД.",
+    "summary": "Integer overflow when modifying SQL array values: missing overflow checks allow an authenticated user to trigger memory corruption and execute arbitrary code in the DB server context.",
     "applies_to_zabbix": [
       {
         "branch": "5.0",
         "php": "PG 12/13",
-        "notes": "Затронуто до патча; вектор — аутентифицированный пользователь БД (учётка Zabbix при компрометации)."
+        "notes": "Affected before the patch; vector — an authenticated DB user (the Zabbix account after compromise)."
       },
       {
         "branch": "6.0/6.4/7.0",
         "php": "PG 13-16",
-        "notes": "То же; патчи в 16.2/15.5/14.10/13.13/12.17."
+        "notes": "Same; patches in 16.2/15.5/14.10/13.13/12.17."
       }
     ],
-    "impact": "Выполнение произвольного кода в контексте postgres-процесса аутентифицированным пользователем БД.",
+    "impact": "Arbitrary code execution in the postgres process context by an authenticated DB user.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2023-5869",
       "https://www.postgresql.org/support/security/"
@@ -913,31 +913,31 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено."
+      "notes": "No public PoC found."
     }
   },
   {
     "id": "CVE-2024-0985",
     "component": "postgresql",
-    "component_version_range": "до 16.2/15.6/14.11/13.14/12.18",
+    "component_version_range": "before 16.2/15.6/14.11/13.14/12.18",
     "severity": {
       "cvss": "8.0",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:U/C:H/I:H/A:H"
     },
-    "summary": "Late privilege drop в REFRESH MATERIALIZED VIEW CONCURRENTLY: создатель материализованного представления может выполнить произвольные SQL-функции от имени пользователя, запустившего команду (обычно более привилегированного). Повышение привилегий в БД.",
+    "summary": "Late privilege drop in REFRESH MATERIALIZED VIEW CONCURRENTLY: the creator of a materialized view can execute arbitrary SQL functions as the user who ran the command (usually more privileged). Privilege escalation in the DB.",
     "applies_to_zabbix": [
       {
         "branch": "6.0",
         "php": "PG 13-15",
-        "notes": "Затронуто до патча (16.2/15.6/14.11/13.14/12.18); требуется право создавать матвью — у выделенного пользователя Zabbix обычно нет → условно."
+        "notes": "Affected before the patch (16.2/15.6/14.11/13.14/12.18); requires the right to create materialized views — the dedicated Zabbix user usually lacks it → conditional."
       },
       {
         "branch": "6.4/7.0",
         "php": "PG 13-16",
-        "notes": "То же."
+        "notes": "Same."
       }
     ],
-    "impact": "Выполнение произвольных SQL-функций от имени более привилегированного пользователя (priv-esc в БД).",
+    "impact": "Execution of arbitrary SQL functions as a more privileged user (priv-esc in the DB).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2024-0985",
       "https://www.postgresql.org/support/security/"
@@ -945,26 +945,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено."
+      "notes": "No public PoC found."
     }
   },
   {
     "id": "CVE-2024-10979",
     "component": "postgresql",
-    "component_version_range": "до 17.2/16.6/15.10/14.15/13.18",
+    "component_version_range": "before 17.2/16.6/15.10/14.15/13.18",
     "severity": {
       "cvss": "8.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Некорректный контроль переменных окружения в PL/Perl: непривилегированный пользователь БД может изменить чувствительные переменные окружения (например, PATH) в процессе сервера — этого часто достаточно для выполнения произвольного кода. Требует установленного расширения plperl.",
+    "summary": "Improper control of environment variables in PL/Perl: an unprivileged DB user can modify sensitive environment variables (e.g., PATH) in the server process — often enough for arbitrary code execution. Requires the plperl extension installed.",
     "applies_to_zabbix": [
       {
         "branch": "6.0/6.4/7.0",
         "php": "PG 13-18",
-        "notes": "Номинально затронуто; требует включённого расширения plperl, которое Zabbix не использует → низкая применимость; проверить факт наличия plperl у цели."
+        "notes": "Nominally affected; requires the plperl extension enabled, which Zabbix does not use → low applicability; verify whether plperl is actually present on the target."
       }
     ],
-    "impact": "Выполнение произвольного кода в контексте сервера БД (при наличии plperl).",
+    "impact": "Arbitrary code execution in the DB server context (if plperl is present).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2024-10979",
       "https://www.postgresql.org/support/security/"
@@ -972,31 +972,31 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено."
+      "notes": "No public PoC found."
     }
   },
   {
     "id": "CVE-2024-11233",
     "component": "php",
-    "component_version_range": "8.1.x до 8.1.31; 8.2.x до 8.2.26; 8.3.x до 8.3.14",
+    "component_version_range": "8.1.x before 8.1.31; 8.2.x before 8.2.26; 8.3.x before 8.3.14",
     "severity": {
       "cvss": "4.8",
       "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:L"
     },
-    "summary": "Ошибка в потоковом фильтре convert.quoted-printable-decode (php://filter): обработка определённых данных приводит к перечитыванию буфера на 1 байт — возможен крах или раскрытие соседних областей памяти. Не является прямым RCE.",
+    "summary": "Bug in the convert.quoted-printable-decode stream filter (php://filter): processing certain data causes a 1-byte buffer overread — a crash or disclosure of adjacent memory areas is possible. Not a direct RCE.",
     "applies_to_zabbix": [
       {
         "branch": "7.0",
         "php": "8.3 (noble 8.3.6 / alpine 8.3)",
-        "notes": "Номинально затронуто (8.3 < 8.3.14); Ubuntu/Alpine бэкпортят фиксы — проверить фактическую версию пакета (напр. php8.3-8.3.6-0ubuntu…). Практическая значимость низкая (overread 1 байт)."
+        "notes": "Nominally affected (8.3 < 8.3.14); Ubuntu/Alpine backport fixes — check the actual package version (e.g., php8.3-8.3.6-0ubuntu…). Low practical significance (1-byte overread)."
       },
       {
         "branch": "6.4",
         "php": "8.1 (jammy 8.1.2)",
-        "notes": "То же: номинально 8.1 < 8.1.31, бэкпорт в дистрибутиве."
+        "notes": "Same: nominally 8.1 < 8.1.31, distro backport."
       }
     ],
-    "impact": "Раскрытие 1 байта памяти / крах процесса при обработке пользовательских данных фильтром quoted-printable.",
+    "impact": "Disclosure of 1 byte of memory / process crash when user data is processed by the quoted-printable filter.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2024-11233",
       "https://www.php.net/ChangeLog-8.php"
@@ -1004,7 +1004,7 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено."
+      "notes": "No public PoC found."
     }
   },
   {
@@ -1015,30 +1015,30 @@
       "cvss": "7.3",
       "vector": "CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:H"
     },
-    "summary": "iconv() в glibc переполняет выходной буфер на величину до 4 байт при конвертации строк в кодировку ISO-2022-CN-EXT. В PHP-приложениях (iconv/mbstring на пользовательских данных) это превращается в RCE-примитив; используется в реальных цепочках эксплуатации 2024 года.",
+    "summary": "iconv() in glibc overflows the output buffer by up to 4 bytes when converting strings to the ISO-2022-CN-EXT encoding. In PHP applications (iconv/mbstring on user data) this becomes an RCE primitive; used in real exploitation chains in 2024.",
     "applies_to_zabbix": [
       {
         "branch": "6.0",
         "php": "glibc 2.31 (focal)",
-        "notes": "Все glibc-дистрибутивы ≤2.39 затронуты до патча; Zabbix-фронтенд не конвертирует пользовательский ввод через iconv в ISO-2022-CN-EXT → низкая применимость, но высокий профиль в связке с другими багами."
+        "notes": "All glibc distributions ≤2.39 are affected before the patch; the Zabbix frontend does not convert user input via iconv to ISO-2022-CN-EXT → low applicability, but high profile when chained with other bugs."
       },
       {
         "branch": "6.4",
         "php": "glibc 2.35 (jammy)",
-        "notes": "То же."
+        "notes": "Same."
       },
       {
         "branch": "7.0",
         "php": "glibc 2.39 (noble)",
-        "notes": "Затронуто до бэкпорта (2.39-0ubuntu8.3+)."
+        "notes": "Affected before the backport (2.39-0ubuntu8.3+)."
       },
       {
         "branch": "3.0-5.0",
         "php": "glibc 2.17/2.28",
-        "notes": "Затронуты номинально; Alpine (musl) не затронут."
+        "notes": "Nominally affected; Alpine (musl) not affected."
       }
     ],
-    "impact": "RCE/крах в приложениях, конвертирующих пользовательские строки через iconv (PHP iconv/mbstring); до 4 байт переполнения.",
+    "impact": "RCE/crash in applications converting user strings via iconv (PHP iconv/mbstring); up to 4 bytes of overflow.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2024-2961",
       "https://www.ambionics.io/blog/iconv-cve-2024-2961",
@@ -1047,26 +1047,26 @@
     "public_poc": {
       "exists": true,
       "url": "https://www.ambionics.io/blog/iconv-cve-2024-2961",
-      "notes": "Анализ и PoC от cfreal (Ambionics); используется в RCE-цепочках против PHP-приложений."
+      "notes": "Analysis and PoC by cfreal (Ambionics); used in RCE chains against PHP applications."
     }
   },
   {
     "id": "CVE-2024-38472",
     "component": "apache",
-    "component_version_range": "httpd 2.4.0–2.4.59 (Windows, UNC-пути)",
+    "component_version_range": "httpd 2.4.0–2.4.59 (Windows, UNC paths)",
     "severity": {
       "cvss": "7.5",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
     },
-    "summary": "SSRF в Apache HTTP Server на Windows: обработка UNC-путей позволяет атакующему заставить сервер обратиться к подконтрольному хосту и утечь NTLM-хеши. Затрагивает только Windows-платформу.",
+    "summary": "SSRF in Apache HTTP Server on Windows: UNC path handling lets an attacker make the server contact an attacker-controlled host and leak NTLM hashes. Affects the Windows platform only.",
     "applies_to_zabbix": [
       {
         "branch": "—",
         "php": "—",
-        "notes": "Windows-only → НЕ применимо к Linux-образам Zabbix. Включено для полноты летней серии Apache 2024."
+        "notes": "Windows-only → NOT applicable to Zabbix Linux images. Included for completeness of the 2024 Apache summer series."
       }
     ],
-    "impact": "SSRF и утечка NTLM-хешей (Windows-развёртывания).",
+    "impact": "SSRF and NTLM hash leakage (Windows deployments).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2024-38472",
       "https://httpd.apache.org/security/vulnerabilities_24.html"
@@ -1074,7 +1074,7 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено."
+      "notes": "No public PoC found."
     }
   },
   {
@@ -1085,25 +1085,25 @@
       "cvss": "9.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Проблема кодирования подстановок в mod_rewrite: атакующий может выполнить скрипты в каталогах, разрешённых конфигурацией, но не достижимых напрямую по URL, либо получить исходный код скриптов, которые должны только исполняться → RCE/source disclosure.",
+    "summary": "Substitution encoding flaw in mod_rewrite: an attacker can execute scripts in directories permitted by the configuration but not directly reachable via URL, or obtain the source code of scripts that should only be executed → RCE/source disclosure.",
     "applies_to_zabbix": [
       {
         "branch": "6.0",
         "php": "httpd 2.4.41 (focal)",
-        "notes": "Номинально в диапазоне (≤2.4.59); Ubuntu бэкпортит фиксы — проверить версию пакета apache2. Требует использования mod_rewrite с RewriteRule (в образах Zabbix присутствует типовой RewriteRule для /zabbix)."
+        "notes": "Nominally in range (≤2.4.59); Ubuntu backports fixes — check the apache2 package version. Requires mod_rewrite with RewriteRule (the images contain a typical RewriteRule for /zabbix)."
       },
       {
         "branch": "6.4",
         "php": "httpd 2.4.52 (jammy)",
-        "notes": "То же, номинально затронуто до бэкпорта."
+        "notes": "Same, nominally affected before the backport."
       },
       {
         "branch": "7.0",
         "php": "httpd 2.4.58 (noble)",
-        "notes": "То же (2.4.58 ≤ 2.4.59), бэкпорт Ubuntu."
+        "notes": "Same (2.4.58 ≤ 2.4.59), Ubuntu backport."
       }
     ],
-    "impact": "Выполнение скриптов вне прямой досягаемости URL / раскрытие исходного кода → RCE в типовых конфигурациях mod_rewrite.",
+    "impact": "Execution of scripts outside direct URL reach / source code disclosure → RCE in typical mod_rewrite configurations.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2024-38474",
       "https://httpd.apache.org/security/vulnerabilities_24.html"
@@ -1111,7 +1111,7 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено; эксплуатируемость зависит от конфигурации RewriteRule."
+      "notes": "No public PoC found; exploitability depends on the RewriteRule configuration."
     }
   },
   {
@@ -1122,25 +1122,25 @@
       "cvss": "9.1",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
     },
-    "summary": "Недостаточное экранирование вывода в mod_rewrite: атакующий мапит URL на файловые расположения, которые серверу разрешено отдавать, но которые не предназначены для прямого доступа → раскрытие исходного кода и потенциальное выполнение скриптов. Входит в KEV (эксплуатируется в природе).",
+    "summary": "Insufficient output escaping in mod_rewrite: an attacker maps URLs to file locations the server is allowed to serve but that are not intended for direct access → source code disclosure and potential script execution. In KEV (exploited in the wild).",
     "applies_to_zabbix": [
       {
         "branch": "6.0",
         "php": "httpd 2.4.41 (focal)",
-        "notes": "Номинально затронуто (≤2.4.59), бэкпорт Ubuntu; KEV — приоритет проверки фактической версии apache2."
+        "notes": "Nominally affected (≤2.4.59), Ubuntu backport; KEV — prioritize checking the actual apache2 version."
       },
       {
         "branch": "6.4",
         "php": "httpd 2.4.52 (jammy)",
-        "notes": "То же."
+        "notes": "Same."
       },
       {
         "branch": "7.0",
         "php": "httpd 2.4.58 (noble)",
-        "notes": "То же."
+        "notes": "Same."
       }
     ],
-    "impact": "Раскрытие исходного кода / RCE; эксплуатируется в природе (KEV).",
+    "impact": "Source code disclosure / RCE; exploited in the wild (KEV).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2024-38475",
       "https://httpd.apache.org/security/vulnerabilities_24.html",
@@ -1149,36 +1149,36 @@
     "public_poc": {
       "exists": true,
       "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
-      "notes": "В KEV (CISA) — реальная эксплуатация; публичный PoC-репозиторий не найден."
+      "notes": "In KEV (CISA) — real-world exploitation; no public PoC repository found."
     }
   },
   {
     "id": "CVE-2024-38476",
     "component": "apache",
-    "component_version_range": "httpd 2.4.0–2.4.59 (ядро)",
+    "component_version_range": "httpd 2.4.0–2.4.59 (core)",
     "severity": {
       "cvss": "9.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Уязвимость в ядре httpd: бэкенд-приложение с вредоносными/эксплуатируемыми заголовками ответов может привести к раскрытию информации, SSRF или локальному выполнению скриптов (обработка заголовков ответа проксируемых приложений).",
+    "summary": "Flaw in the httpd core: a backend application with malicious/exploitable response headers can lead to information disclosure, SSRF, or local script execution (processing of response headers from proxied applications).",
     "applies_to_zabbix": [
       {
         "branch": "6.0",
         "php": "httpd 2.4.41 (focal)",
-        "notes": "Номинально затронуто (≤2.4.59), бэкпорт Ubuntu; вектор требует проксирования бэкенд-приложения с контролируемыми заголовками — для Zabbix условно."
+        "notes": "Nominally affected (≤2.4.59), Ubuntu backport; the vector requires proxying a backend application with attacker-controlled headers — conditional for Zabbix."
       },
       {
         "branch": "6.4",
         "php": "httpd 2.4.52 (jammy)",
-        "notes": "То же."
+        "notes": "Same."
       },
       {
         "branch": "7.0",
         "php": "httpd 2.4.58 (noble)",
-        "notes": "То же."
+        "notes": "Same."
       }
     ],
-    "impact": "Info disclosure / SSRF / локальное выполнение скриптов через заголовки ответов бэкенда.",
+    "impact": "Info disclosure / SSRF / local script execution via backend response headers.",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2024-38476",
       "https://httpd.apache.org/security/vulnerabilities_24.html",
@@ -1187,26 +1187,26 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Публичного PoC не найдено."
+      "notes": "No public PoC found."
     }
   },
   {
     "id": "CVE-2024-4577",
     "component": "php",
-    "component_version_range": "8.1.x до 8.1.29; 8.2.x до 8.2.20; 8.3.x до 8.3.8 (только Windows + PHP-CGI)",
+    "component_version_range": "8.1.x before 8.1.29; 8.2.x before 8.2.20; 8.3.x before 8.3.8 (Windows + PHP-CGI only)",
     "severity": {
       "cvss": "9.8",
       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "На Windows при запуске PHP-CGI под Apache в системах с определёнными code pages (китайский/японский) механизм «Best-Fit» подменяет символы в командной строке Win32-функций, из-за чего атакующий внедряет аргументы командной строки PHP (аналог CVE-2012-1823). Удалённое выполнение кода. Массово эксплуатировался в июне 2024 (KEV).",
+    "summary": "On Windows, when running PHP-CGI under Apache on systems with certain code pages (Chinese/Japanese), the 'Best-Fit' mechanism substitutes characters in Win32 function command lines, letting the attacker inject PHP command-line arguments (similar to CVE-2012-1823). Remote code execution. Massively exploited in June 2024 (KEV).",
     "applies_to_zabbix": [
       {
         "branch": "6.0/6.4/7.0",
         "php": "8.1-8.3",
-        "notes": "Linux-окружения (все официальные docker-образы Zabbix) НЕ затронуты. Применимо только к нестандартным развёртываниям Zabbix на Windows с PHP-CGI."
+        "notes": "Linux environments (all official Zabbix docker images) are NOT affected. Applicable only to non-standard Zabbix deployments on Windows with PHP-CGI."
       }
     ],
-    "impact": "Полный удалённый RCE без аутентификации на Windows-серверах с PHP-CGI; массовая эксплуатация (KEV).",
+    "impact": "Full remote RCE without authentication on Windows servers with PHP-CGI; mass exploitation (KEV).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2024-4577",
       "https://labs.watchtowr.com/no-way-php-strikes-again-cve-2024-4577/",
@@ -1215,26 +1215,26 @@
     "public_poc": {
       "exists": true,
       "url": "https://labs.watchtowr.com/no-way-php-strikes-again-cve-2024-4577/",
-      "notes": "WatchTowr-анализ и PoC; многочисленные GitHub-PoC; KEV (CISA)."
+      "notes": "WatchTowr analysis and PoC; numerous GitHub PoCs; KEV (CISA)."
     }
   },
   {
     "id": "CVE-2025-1094",
     "component": "postgresql",
-    "component_version_range": "libpq: до 17.3/16.7/15.11/14.16/13.19",
+    "component_version_range": "libpq: before 17.3/16.7/15.11/14.16/13.19",
     "severity": {
       "cvss": "8.1",
       "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
     },
-    "summary": "Функции экранирования libpq (PQescapeLiteral, PQescapeIdentifier, PQescapeString, PQescapeStringConn) не нейтрализуют кавычки во входных данных, не прошедших проверку кодировки: поставщик данных может добиться SQL-инъекции в приложениях, использующих эти функции (при определённых client_encoding).",
+    "summary": "libpq escaping functions (PQescapeLiteral, PQescapeIdentifier, PQescapeString, PQescapeStringConn) do not neutralize quotes in input that has not passed encoding validation: the data provider can achieve SQL injection in applications using these functions (with certain client_encoding settings).",
     "applies_to_zabbix": [
       {
         "branch": "6.4/7.0",
-        "php": "PG 13-18 / libpq клиенты",
-        "notes": "Затрагивает клиентские библиотеки libpq (php-pgsql на Ubuntu использует libpq; psql). Zabbix-фронтенд строит запросы параметризованно и PQescape* с пользовательским вводом не использует → низкая применимость; актуально для сторонних приложений на том же стеке."
+        "php": "PG 13-18 / libpq clients",
+        "notes": "Affects libpq client libraries (php-pgsql on Ubuntu uses libpq; psql). The Zabbix frontend builds queries in a parameterized way and does not use PQescape* with user input → low applicability; relevant for third-party applications on the same stack."
       }
     ],
-    "impact": "SQL-инъекция в приложениях, использующих PQescape* на пользовательских данных (требует специфичных client_encoding/невалидных байтов).",
+    "impact": "SQL injection in applications using PQescape* on user data (requires specific client_encoding/invalid bytes).",
     "references": [
       "https://nvd.nist.gov/vuln/detail/CVE-2025-1094",
       "https://www.postgresql.org/support/security/CVE-2025-1094"
@@ -1242,7 +1242,7 @@
     "public_poc": {
       "exists": false,
       "url": "",
-      "notes": "Обсуждения и разборы есть; готового публичного эксплойта нет."
+      "notes": "Discussions and write-ups exist; no ready-made public exploit."
     }
   }
 ]
